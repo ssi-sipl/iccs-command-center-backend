@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import areaRoutes from "./routers/areaRouter.js";
+import sensorRoutes from "./routers/sensorRouter.js";
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.use(urlencoded({ extended: true }));
 
 // Routes
 app.use("/api/areas", areaRoutes);
+app.use("/api/sensors", sensorRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
