@@ -1,0 +1,102 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Area {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  areaId    String   @unique // e.g., AREA-006
+  name      String   // e.g., North Sector Zone B
+  latitude  Float    // Range: -90 to 90
+  longitude Float    // Range: -180 to 180
+  status    String   @default("Active") // Active/Inactive
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sensors Sensor[]
+  alarms  Alarm[]
+
+  @@map("areas")
+}
+
+model Sensor {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  sensorId   String   @unique // Unique sensor ID
+  name       String   // Sensor name
+  sensorType String   // Type of sensor
+  latitude   Float    // Sensor location latitude
+  longitude  Float    // Sensor location longitude
+  ipAddress  String?  // Optional IP address
+  battery    String?  // Battery status
+  status     String   // Sensor status (Active/Inactive)
+  
+  // Drone control fields
+  sendDrone       String   @default("No") // Auto-launch drone? Yes/No
+  activeShuruMode String   // Active/Shuru sensor state
+  
+  // Relations
+  areaId  String? @db.ObjectId
+  area    Area?   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  
+  alarmId String? @db.ObjectId
+  alarm   Alarm?  @relation(fields: [alarmId], references: [id], onDelete: SetNull)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sensors")
+}
+
+model DroneOS {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  droneOSName       String   // Drone OS name
+  droneType         String   // e.g., quadcopter, hexacopter
+  gpsFix            String   // GPS fix value
+  minHDOP           Float    // Min HDOP (1<0): Range 0-1
+  minSatCount       Int      // Min Sat Count (1-8): Range 0-8
+  maxWindSpeed      Float    // Max Wind Speed in m/s
+  droneSpeed        Float    // Drone Speed in m/s
+  targetAltitude    Float    // Target Altitude in meters
+  gpsLost           String   // Action on GPS lost
+  telemetryLost     String   // Action on telemetry lost
+  minBatteryLevel   Float    // Min Battery Level in percentage
+  usbAddress        String   // USB Address
+  batteryFailSafe   String   // Action on battery fail safe (RTL, Land)
+  gpsName           String   // GPS Name
+  maxAltitude       Float    // Max Altitude in meters
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("drone_os_settings")
+}
+
+model Alarm {
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  alarmId  String   @unique // Unique Alarm ID
+  name     String   // Alarm name
+  status   String   @default("Active") // Active/Inactive
+  
+  // Relations
+  areaId  String? @db.ObjectId
+  area    Area?   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  
+  sensors Sensor[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("alarms")
+}
