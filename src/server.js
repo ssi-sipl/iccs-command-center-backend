@@ -6,6 +6,7 @@ dotenv.config();
 import areaRoutes from "./routers/areaRouter.js";
 import sensorRoutes from "./routers/sensorRouter.js";
 import droneosRoutes from "./routers/droneosRouter.js";
+import alarmRoutes from "./routers/alarmRouter.js";
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(urlencoded({ extended: true }));
 app.use("/api/areas", areaRoutes);
 app.use("/api/sensors", sensorRoutes);
 app.use("/api/droneos", droneosRoutes);
+app.use("/api/alarms", alarmRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
