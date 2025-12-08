@@ -14,6 +14,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum AlertStatus {
+  ACTIVE        // waiting for your decision
+  SENT          // drone dispatched
+  NEUTRALISED   // manually neutralised / ignored
+}
+
 model Area {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   areaId    String   @unique // e.g., AREA-006
@@ -52,6 +58,8 @@ model Sensor {
   
   alarmId String? @db.ObjectId
   alarm   Alarm?  @relation(fields: [alarmId], references: [id], onDelete: SetNull)
+
+  alerts  Alert[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -100,3 +108,30 @@ model Alarm {
 
   @@map("alarms")
 }
+
+model Alert {
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+
+  // Relation to Sensor (Mongo ObjectId)
+  sensorDbId String     @db.ObjectId
+  sensor     Sensor     @relation(fields: [sensorDbId], references: [id], onDelete: Cascade)
+
+  // Business / logical sensor ID (e.g. "SENSOR-001")
+  sensorId   String
+
+  type      String      // e.g. "ObjectDetected"
+  message   String      // e.g. "Object detected in front of Sensor-1"
+
+  status    AlertStatus @default(ACTIVE)
+
+  createdAt DateTime    @default(now())
+  decidedAt DateTime?
+  decision  String?     // "send_drone:DRONE-1" | "neutralised"
+
+  metadata  Json?
+
+  @@map("alerts")
+  @@index([status])
+  @@index([sensorDbId])
+}
+
