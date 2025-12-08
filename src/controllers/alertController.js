@@ -1,4 +1,5 @@
 import prisma from "../lib/prisma.js";
+import { getIo } from "../lib/socket.js";
 /**
  * Nx Witness → POST /api/alerts/from-nx
  *
@@ -54,6 +55,14 @@ async function handleNxAlert(req, res) {
       });
     }
 
+    const area = await prisma.area.findUnique({
+      where: { id: sensor.areaId },
+    });
+
+    // Attach area info to sensor for broadcasting
+    sensor.areaName = area ? area.name : "Unknown Area";
+    sensor.areaId = area ? area.areaId : "Unknown AreaId";
+
     // 3) Create a new ACTIVE alert for this sensor
     const alertType = type || "ObjectDetected";
     const alertMessage =
@@ -72,6 +81,31 @@ async function handleNxAlert(req, res) {
 
     // 4) Optionally broadcast via WebSocket / Socket.IO here
     //    e.g. io.emit("alert_active", newAlert)
+    const payload = {
+      ...newAlert,
+      sensor: {
+        id: sensor.id,
+        sensorId: sensor.sensorId,
+        name: sensor.name,
+        latitude: sensor.latitude,
+        longitude: sensor.longitude,
+        area: {
+          name: sensor.areaName,
+          areaId: sensor.areaId,
+        },
+      },
+    };
+
+    // 🔥 broadcast to all connected clients
+    try {
+      const io = getIo();
+      io.emit("alert_active", payload);
+    } catch (e) {
+      console.error(
+        "Socket not initialized, cannot emit alert_active:",
+        e.message
+      );
+    }
 
     return res.status(201).json({
       success: true,
@@ -187,6 +221,16 @@ async function sendDroneForAlert(req, res) {
     // ✅ 6. WebSocket broadcast (if using Socket.IO)
     // io.emit("alert_resolved", { id, status: "SENT", droneId: drone.id });
 
+    try {
+      const io = getIo();
+      io.emit("alert_resolved", { id: updated.id, status: updated.status });
+    } catch (e) {
+      console.error(
+        "Socket not initialized, cannot emit alert_resolved:",
+        e.message
+      );
+    }
+
     return res.json({
       success: true,
       data: {
@@ -235,6 +279,15 @@ async function neutraliseAlert(req, res) {
     }
 
     // TODO: broadcast via WebSocket: io.emit("alert_resolved", { id, status: "NEUTRALISED" });
+    try {
+      const io = getIo();
+      io.emit("alert_resolved", { id: updated.id, status: updated.status });
+    } catch (e) {
+      console.error(
+        "Socket not initialized, cannot emit alert_resolved:",
+        e.message
+      );
+    }
 
     return res.json({
       success: true,
