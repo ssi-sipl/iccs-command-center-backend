@@ -1,5 +1,7 @@
 import prisma from "../lib/prisma.js";
 import { getIo } from "../lib/socket.js";
+import { publishJson } from "../lib/mqttClient.js";
+
 /**
  * Nx Witness → POST /api/alerts/from-nx
  *
@@ -217,6 +219,33 @@ async function sendDroneForAlert(req, res) {
         longitude: alert.sensor?.longitude,
       });
     */
+    const mqttPayload = {
+      alert: updated,
+      drone: {
+        id: drone.id,
+        droneOSName: drone.droneOSName,
+        droneType: drone.droneType,
+        gpsFix: drone.gpsFix,
+        minHDOP: drone.minHDOP,
+        minSatCount: drone.minSatCount,
+        maxWindSpeed: drone.maxWindSpeed,
+        droneSpeed: drone.droneSpeed,
+        targetAltitude: drone.targetAltitude,
+        gpsLost: drone.gpsLost,
+        telemetryLost: drone.telemetryLost,
+        minBatteryLevel: drone.minBatteryLevel,
+        usbAddress: drone.usbAddress,
+        batteryFailSafe: drone.batteryFailSafe,
+        gpsName: drone.gpsName,
+        maxAltitude: drone.maxAltitude,
+      },
+    };
+
+    try {
+      await publishJson("drone/mission/start", mqttPayload);
+    } catch (e) {
+      // already logged inside publishJson
+    }
 
     // ✅ 6. WebSocket broadcast (if using Socket.IO)
     // io.emit("alert_resolved", { id, status: "SENT", droneId: drone.id });

@@ -2,6 +2,7 @@ import express, { json, urlencoded } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import http from "http";
+import { getMqttClient } from "./lib/mqttClient.js";
 import { initSocket } from "./lib/socket.js";
 dotenv.config();
 
@@ -48,6 +49,7 @@ initSocket(server);
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  getMqttClient();
 });
 
 export default app;
