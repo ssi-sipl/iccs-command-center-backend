@@ -45,6 +45,7 @@ model Sensor {
   latitude   Float    // Sensor location latitude
   longitude  Float    // Sensor location longitude
   ipAddress  String?  // Optional IP address
+  rtspUrl    String?  // Optional RTSP URL for live stream
   battery    String?  // Battery status
   status     String   // Sensor status (Active/Inactive)
   

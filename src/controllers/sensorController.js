@@ -86,6 +86,7 @@ const createSensor = async (req, res) => {
       latitude,
       longitude,
       ipAddress,
+      rtspUrl,
       battery,
       status,
       sendDrone,
@@ -112,7 +113,8 @@ const createSensor = async (req, res) => {
     }
 
     // Validate latitude range (-90 to 90)
-    if (latitude < -90 || latitude > 90) {
+    const latNum = parseFloat(latitude);
+    if (isNaN(latNum) || latNum < -90 || latNum > 90) {
       return res.status(400).json({
         success: false,
         error: "Latitude must be between -90 and 90",
@@ -120,7 +122,8 @@ const createSensor = async (req, res) => {
     }
 
     // Validate longitude range (-180 to 180)
-    if (longitude < -180 || longitude > 180) {
+    const lngNum = parseFloat(longitude);
+    if (isNaN(lngNum) || lngNum < -180 || lngNum > 180) {
       return res.status(400).json({
         success: false,
         error: "Longitude must be between -180 and 180",
@@ -173,9 +176,10 @@ const createSensor = async (req, res) => {
         sensorId,
         name,
         sensorType,
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
+        latitude: latNum,
+        longitude: lngNum,
         ipAddress: ipAddress || null,
+        rtspUrl: rtspUrl || null, // ✅ new optional field
         battery: battery || null,
         status,
         sendDrone: sendDrone || "No",
@@ -216,6 +220,7 @@ const updateSensor = async (req, res) => {
       latitude,
       longitude,
       ipAddress,
+      rtspUrl,
       battery,
       status,
       sendDrone,
@@ -237,19 +242,25 @@ const updateSensor = async (req, res) => {
     }
 
     // Validate latitude if provided
-    if (latitude !== undefined && (latitude < -90 || latitude > 90)) {
-      return res.status(400).json({
-        success: false,
-        error: "Latitude must be between -90 and 90",
-      });
+    if (latitude !== undefined) {
+      const latNum = parseFloat(latitude);
+      if (isNaN(latNum) || latNum < -90 || latNum > 90) {
+        return res.status(400).json({
+          success: false,
+          error: "Latitude must be between -90 and 90",
+        });
+      }
     }
 
     // Validate longitude if provided
-    if (longitude !== undefined && (longitude < -180 || longitude > 180)) {
-      return res.status(400).json({
-        success: false,
-        error: "Longitude must be between -180 and 180",
-      });
+    if (longitude !== undefined) {
+      const lngNum = parseFloat(longitude);
+      if (isNaN(lngNum) || lngNum < -180 || lngNum > 180) {
+        return res.status(400).json({
+          success: false,
+          error: "Longitude must be between -180 and 180",
+        });
+      }
     }
 
     // Check if new sensorId conflicts with existing sensor
@@ -301,13 +312,14 @@ const updateSensor = async (req, res) => {
     if (sensorType) updateData.sensorType = sensorType;
     if (latitude !== undefined) updateData.latitude = parseFloat(latitude);
     if (longitude !== undefined) updateData.longitude = parseFloat(longitude);
-    if (ipAddress !== undefined) updateData.ipAddress = ipAddress;
+    if (ipAddress !== undefined) updateData.ipAddress = ipAddress || null;
+    if (rtspUrl !== undefined) updateData.rtspUrl = rtspUrl || null; // ✅ handle RTSP updates
     if (battery !== undefined) updateData.battery = battery;
     if (status) updateData.status = status;
     if (sendDrone) updateData.sendDrone = sendDrone;
     if (activeShuruMode) updateData.activeShuruMode = activeShuruMode;
-    if (areaId !== undefined) updateData.areaId = areaId;
-    if (alarmId !== undefined) updateData.alarmId = alarmId;
+    if (areaId !== undefined) updateData.areaId = areaId || null;
+    if (alarmId !== undefined) updateData.alarmId = alarmId || null;
 
     // Update sensor
     const updatedSensor = await prisma.sensor.update({

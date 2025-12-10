@@ -240,9 +240,10 @@ async function sendDroneForAlert(req, res) {
         maxAltitude: drone.maxAltitude,
       },
     };
+    
 
     try {
-      await publishJson("drone/mission/start", mqttPayload);
+      await publishJson("drone", mqttPayload);
     } catch (e) {
       // already logged inside publishJson
     }

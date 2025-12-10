@@ -12,6 +12,7 @@ import droneosRoutes from "./routers/droneosRouter.js";
 import alarmRoutes from "./routers/alarmRouter.js";
 import alertRoutes from "./routers/alertRouter.js";
 import mapRoutes from "./routers/mapRoutes.js";
+import rtspRoutes from "./routers/rtspRouter.js";
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use("/api/droneos", droneosRoutes);
 app.use("/api/alarms", alarmRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/maps", mapRoutes);
+app.use("/api/rtsp", rtspRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
