@@ -240,7 +240,6 @@ async function sendDroneForAlert(req, res) {
         maxAltitude: drone.maxAltitude,
       },
     };
-    
 
     try {
       await publishJson("drone", mqttPayload);
@@ -412,10 +411,95 @@ async function getAlertsBySensor(req, res) {
   }
 }
 
+/**
+ * GET /api/alerts
+ *
+ * - Returns all alerts with optional filtering by status
+ * - Includes sensor information for each alert
+ * - Supports pagination and sorting
+ *
+ * Query params:
+ *  - status?: "ACTIVE" | "SENT" | "NEUTRALISED"  // Filter by alert status
+ *  - limit?: number                               // Number of results (default: 100)
+ *  - skip?: number                                // Skip results for pagination (default: 0)
+ *  - sortBy?: "createdAt" | "decidedAt"          // Sort field (default: createdAt)
+ *  - sortOrder?: "asc" | "desc"                  // Sort order (default: desc)
+ */
+async function getAllAlerts(req, res) {
+  try {
+    const {
+      status,
+      limit = 100,
+      skip = 0,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = req.query;
+
+    // Build the where clause
+    const whereClause = {};
+
+    // Add status filter if provided
+    if (status && ["ACTIVE", "SENT", "NEUTRALISED"].includes(status)) {
+      whereClause.status = status;
+    }
+
+    // Parse pagination params
+    const limitNum = parseInt(limit, 10) || 100;
+    const skipNum = parseInt(skip, 10) || 0;
+
+    // Validate sort params
+    const validSortFields = ["createdAt", "decidedAt"];
+    const validSortOrders = ["asc", "desc"];
+
+    const sortField = validSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const sortDirection = validSortOrders.includes(sortOrder)
+      ? sortOrder
+      : "desc";
+
+    // Fetch alerts with sensor details
+    const alerts = await prisma.alert.findMany({
+      where: whereClause,
+      orderBy: { [sortField]: sortDirection },
+      skip: skipNum,
+      take: limitNum,
+      include: {
+        sensor: {
+          include: {
+            area: true, // Include area information for full context
+          },
+        },
+      },
+    });
+
+    // Get total count for pagination metadata
+    const totalCount = await prisma.alert.count({
+      where: whereClause,
+    });
+
+    return res.json({
+      success: true,
+      data: alerts,
+      pagination: {
+        total: totalCount,
+        limit: limitNum,
+        skip: skipNum,
+        hasMore: skipNum + limitNum < totalCount,
+      },
+    });
+  } catch (err) {
+    console.error("Error in getAllAlerts:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+}
+
 export {
   handleNxAlert,
   sendDroneForAlert,
   neutraliseAlert,
   getActiveAlerts,
   getAlertsBySensor,
+  getAllAlerts, // Add this to your exports
 };

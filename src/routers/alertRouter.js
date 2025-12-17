@@ -6,12 +6,15 @@ import {
   neutraliseAlert,
   getActiveAlerts,
   getAlertsBySensor,
+  getAllAlerts,
 } from "../controllers/alertController.js";
 
 const router = Router();
 
 // Nx Witness POSTs here when it detects something
 router.post("/from-nx", handleNxAlert);
+
+router.get("/alerts", getAllAlerts);
 
 // UI can call this to send drone for a specific alert
 router.post("/:id/send-drone", sendDroneForAlert);
