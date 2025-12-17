@@ -2,13 +2,14 @@
 import { spawn } from "child_process";
 import prisma from "../lib/prisma.js";
 import process from "process";
+import path from "path";
+import { fileURLToPath } from "url";
 
-/* Environment overrides:
-   - GST_COMMAND: path to gst-launch binary (default: "gst-launch-1.0")
-   - GST_WRAPPER: optional wrapper command, e.g. "xvfb-run -a" (useful on headless servers)
-*/
-const GST_COMMAND = process.env.GST_COMMAND || "gst-launch-1.0";
-const GST_WRAPPER = process.env.GST_WRAPPER || ""; // e.g. "xvfb-run -a"
+// Convert import.meta.url to file path
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const PLAYER_COMMAND = path.resolve(__dirname, "../../rtsp_player");
 
 // Very simple RTSP validator
 function isRtspUrl(url) {
@@ -16,112 +17,62 @@ function isRtspUrl(url) {
 }
 
 /**
- * POST /api/rtsp/open-gst
+ * POST /api/rtsp/open-player
  *
  * Body: { sensorDbId: "..."} or { rtspUrl: "rtsp://..." }
  *
- * Spawns a gst-launch pipeline for the chosen RTSP stream and returns the child pid.
+ * Spawns your rtsp_player binary for the chosen RTSP stream and returns the child pid.
  */
-export async function openRtspInGst(req, res) {
+export async function openRtspInPlayer(req, res) {
   try {
     const { sensorDbId, rtspUrl: bodyRtspUrl } = req.body || {};
     let rtspUrl = bodyRtspUrl ?? null;
 
-    // If client only gives sensorDbId, resolve RTSP from DB
+    // Resolve RTSP from DB if sensorDbId provided
     if (!rtspUrl && sensorDbId) {
       const sensor = await prisma.sensor.findUnique({
         where: { id: sensorDbId },
         select: { id: true, name: true, rtspUrl: true },
       });
-
-      if (!sensor) {
+      if (!sensor)
         return res
           .status(404)
           .json({ success: false, error: "Sensor not found" });
-      }
-      if (!sensor.rtspUrl) {
-        return res.status(400).json({
-          success: false,
-          error: "This sensor has no RTSP URL configured",
-        });
-      }
+      if (!sensor.rtspUrl)
+        return res
+          .status(400)
+          .json({ success: false, error: "Sensor has no RTSP URL" });
       rtspUrl = sensor.rtspUrl;
     }
 
-    if (!rtspUrl) {
-      return res.status(400).json({
-        success: false,
-        error: "Provide either rtspUrl or sensorDbId",
-      });
-    }
+    if (!rtspUrl)
+      return res
+        .status(400)
+        .json({ success: false, error: "Provide rtspUrl or sensorDbId" });
+    if (!isRtspUrl(rtspUrl))
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid RTSP URL" });
 
-    if (!isRtspUrl(rtspUrl)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid RTSP URL (must start with rtsp://)",
-      });
-    }
-
-    // Build the gst-launch argument list.
-    // Note: using explicit element tokens and '!' tokens as separate args works with spawn.
-    // This pipeline uses software decode (avdec_h264) and 200ms latency (good quality).
-    const pipelineArgs = [
-      // pipeline pieces:
-      "rtspsrc",
-      `location=${rtspUrl}`,
-      "latency=200",
-      "protocols=tcp",
-      "!",
-      "rtph264depay",
-      "!",
-      "h264parse",
-      "!",
-      "avdec_h264",
-      "!",
-      "videoconvert",
-      "!",
-      "autovideosink",
-      "sync=true",
-    ];
-
-    // If the user set GST_WRAPPER (e.g., "xvfb-run -a"), split and run wrapper + gst command
-    // Example: GST_WRAPPER="xvfb-run -a"
-    let child;
-    if (GST_WRAPPER) {
-      // spawn wrapper as shell command with gst-launch and args
-      // e.g. ["xvfb-run","-a","gst-launch-1.0", ...]
-      const wrapperParts = GST_WRAPPER.trim().split(/\s+/);
-      const finalArgs = [
-        ...wrapperParts.slice(0),
-        GST_COMMAND,
-        ...pipelineArgs,
-      ];
-      // spawn via the first wrapper token
-      child = spawn(finalArgs[0], finalArgs.slice(1), {
-        detached: true,
-        stdio: "ignore",
-      });
-    } else {
-      // spawn gst-launch directly
-      child = spawn(GST_COMMAND, pipelineArgs, {
-        detached: true,
-        stdio: "ignore", // don't block server stdout/stderr
-      });
-    }
+    // Spawn the C++ RTSP player
+    const child = spawn(PLAYER_COMMAND, [rtspUrl], {
+      detached: true,
+      stdio: "ignore", // don't block backend
+    });
 
     child.unref();
 
     return res.status(200).json({
       success: true,
-      message: "Launched GStreamer pipeline for RTSP stream",
+      message: "Launched RTSP player for stream",
       pid: child.pid,
-      gst_command: GST_WRAPPER ? `${GST_WRAPPER} ${GST_COMMAND}` : GST_COMMAND,
+      command: PLAYER_COMMAND,
     });
   } catch (err) {
-    console.error("Error in openRtspInGst:", err);
+    console.error("Error in openRtspInPlayer:", err);
     return res.status(500).json({
       success: false,
-      error: "Failed to launch GStreamer pipeline",
+      error: "Failed to launch RTSP player",
       details: String(err),
     });
   }
@@ -146,7 +97,6 @@ export async function stopStream(req, res) {
         .status(200)
         .json({ success: true, message: `Sent SIGTERM to pid ${pid}` });
     } catch (e) {
-      // maybe not running; try SIGKILL
       try {
         process.kill(pid, "SIGKILL");
         return res
