@@ -31,8 +31,10 @@ model Area {
   updatedAt DateTime @updatedAt
 
   // Relations
-  sensors Sensor[]
-  alarms  Alarm[]
+  sensors       Sensor[]
+  alarms        Alarm[]
+  drones        DroneOS[]
+  flightHistory DroneFlightHistory[]
 
   @@map("areas")
 }
@@ -60,7 +62,8 @@ model Sensor {
   alarmId String? @db.ObjectId
   alarm   Alarm?  @relation(fields: [alarmId], references: [id], onDelete: SetNull)
 
-  alerts  Alert[]
+  alerts        Alert[]
+  flightHistory DroneFlightHistory[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -70,8 +73,10 @@ model Sensor {
 
 model DroneOS {
   id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  droneId           String?   @unique // Unique drone ID (similar to sensorId)
   droneOSName       String   // Drone OS name
   droneType         String   // e.g., quadcopter, hexacopter
+  videoLink         String?  // Video feed link
   gpsFix            String   // GPS fix value
   minHDOP           Float    // Min HDOP (1<0): Range 0-1
   minSatCount       Int      // Min Sat Count (1-8): Range 0-8
@@ -85,6 +90,12 @@ model DroneOS {
   batteryFailSafe   String   // Action on battery fail safe (RTL, Land)
   gpsName           String   // GPS Name
   maxAltitude       Float    // Max Altitude in meters
+  
+  // Relations
+  areaId        String? @db.ObjectId
+  area          Area?   @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  
+  flightHistory DroneFlightHistory[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -127,13 +138,62 @@ model Alert {
 
   createdAt DateTime    @default(now())
   decidedAt DateTime?
-  decision  String?     // "send_drone:DRONE-1" | "neutralised"
+  decision  String?     // "send drone:693964e5985c84e3051ffa97" | "neutralised"
 
   metadata  Json?
+
+  // Relations
+  flightHistory DroneFlightHistory[]
 
   @@map("alerts")
   @@index([status])
   @@index([sensorDbId])
+}
+
+model DroneFlightHistory {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  // Relations
+  droneDbId       String   @db.ObjectId
+  drone           DroneOS  @relation(fields: [droneDbId], references: [id], onDelete: Cascade)
+  
+  alertDbId       String   @db.ObjectId
+  alert           Alert    @relation(fields: [alertDbId], references: [id], onDelete: Cascade)
+  
+  sensorDbId      String   @db.ObjectId
+  sensor          Sensor   @relation(fields: [sensorDbId], references: [id], onDelete: Cascade)
+  
+  areaDbId        String?  @db.ObjectId
+  area            Area?    @relation(fields: [areaDbId], references: [id], onDelete: SetNull)
+  
+  // Business IDs for easy reference
+  droneId         String   // e.g., "DRONE-001"
+  sensorId        String   // e.g., "SENSOR-001"
+  alertId         String   // The alert ID that triggered this flight
+  
+  // Flight details
+  dispatchedAt    DateTime @default(now())
+  completedAt     DateTime?
+  status          String   // e.g., "Dispatched", "In Flight", "Completed", "Aborted"
+  
+  // Optional flight data
+  flightDuration  Int?     // Duration in seconds
+  batteryUsed     Float?   // Battery percentage used
+  maxAltitude     Float?   // Max altitude reached during flight
+  distanceCovered Float?   // Distance covered in meters
+  
+  notes           String?  // Any additional notes or observations
+  metadata        Json?    // Any additional data you want to store
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("drone_flight_history")
+  @@index([droneDbId])
+  @@index([alertDbId])
+  @@index([sensorDbId])
+  @@index([status])
+  @@index([dispatchedAt])
 }
 
 model OfflineMap {

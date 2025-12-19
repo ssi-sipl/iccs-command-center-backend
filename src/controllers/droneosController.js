@@ -5,7 +5,17 @@ import prisma from "../lib/prisma.js";
 // @access  Public
 const getAllDroneOS = async (req, res) => {
   try {
+    const { areaId, include } = req.query;
+
+    // Build where clause
+    const whereClause = {};
+    if (areaId) whereClause.areaId = areaId;
+
     const droneOSSettings = await prisma.droneOS.findMany({
+      where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+      include: {
+        area: include === "true",
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -31,9 +41,13 @@ const getAllDroneOS = async (req, res) => {
 const getDroneOSById = async (req, res) => {
   try {
     const { id } = req.params;
+    const { include } = req.query;
 
     const droneOS = await prisma.droneOS.findUnique({
       where: { id },
+      include: {
+        area: include === "true",
+      },
     });
 
     if (!droneOS) {
@@ -62,8 +76,10 @@ const getDroneOSById = async (req, res) => {
 const createDroneOS = async (req, res) => {
   try {
     const {
+      droneId,
       droneOSName,
       droneType,
+      videoLink,
       gpsFix,
       minHDOP,
       minSatCount,
@@ -77,10 +93,12 @@ const createDroneOS = async (req, res) => {
       batteryFailSafe,
       gpsName,
       maxAltitude,
+      areaId,
     } = req.body;
 
     // Validation - required fields
     if (
+      !droneId ||
       !droneOSName ||
       !droneType ||
       !gpsFix ||
@@ -101,6 +119,32 @@ const createDroneOS = async (req, res) => {
         success: false,
         error: "Missing required fields",
       });
+    }
+
+    // Check if droneId already exists
+    const existingDrone = await prisma.droneOS.findUnique({
+      where: { droneId },
+    });
+
+    if (existingDrone) {
+      return res.status(409).json({
+        success: false,
+        error: "Drone ID already exists",
+      });
+    }
+
+    // Verify area exists if areaId is provided
+    if (areaId) {
+      const areaExists = await prisma.area.findUnique({
+        where: { id: areaId },
+      });
+
+      if (!areaExists) {
+        return res.status(404).json({
+          success: false,
+          error: "Area not found",
+        });
+      }
     }
 
     // Validate minHDOP range (0 to 1)
@@ -158,8 +202,10 @@ const createDroneOS = async (req, res) => {
     // Create drone OS setting
     const droneOS = await prisma.droneOS.create({
       data: {
+        droneId,
         droneOSName,
         droneType,
+        videoLink: videoLink || null,
         gpsFix,
         minHDOP: parseFloat(minHDOP),
         minSatCount: parseInt(minSatCount),
@@ -173,6 +219,10 @@ const createDroneOS = async (req, res) => {
         batteryFailSafe,
         gpsName,
         maxAltitude: parseFloat(maxAltitude),
+        areaId: areaId || null,
+      },
+      include: {
+        area: true,
       },
     });
 
@@ -197,8 +247,10 @@ const updateDroneOS = async (req, res) => {
   try {
     const { id } = req.params;
     const {
+      droneId,
       droneOSName,
       droneType,
+      videoLink,
       gpsFix,
       minHDOP,
       minSatCount,
@@ -212,6 +264,7 @@ const updateDroneOS = async (req, res) => {
       batteryFailSafe,
       gpsName,
       maxAltitude,
+      areaId,
     } = req.body;
 
     // Check if drone OS exists
@@ -224,6 +277,34 @@ const updateDroneOS = async (req, res) => {
         success: false,
         error: "Drone OS setting not found",
       });
+    }
+
+    // Check if new droneId conflicts with existing drone
+    if (droneId && droneId !== existingDroneOS.droneId) {
+      const droneIdConflict = await prisma.droneOS.findUnique({
+        where: { droneId },
+      });
+
+      if (droneIdConflict) {
+        return res.status(409).json({
+          success: false,
+          error: "Drone ID already exists",
+        });
+      }
+    }
+
+    // Verify area exists if areaId is provided
+    if (areaId) {
+      const areaExists = await prisma.area.findUnique({
+        where: { id: areaId },
+      });
+
+      if (!areaExists) {
+        return res.status(404).json({
+          success: false,
+          error: "Area not found",
+        });
+      }
     }
 
     // Validate minHDOP if provided
@@ -283,8 +364,10 @@ const updateDroneOS = async (req, res) => {
 
     // Build update data object
     const updateData = {};
+    if (droneId) updateData.droneId = droneId;
     if (droneOSName) updateData.droneOSName = droneOSName;
     if (droneType) updateData.droneType = droneType;
+    if (videoLink !== undefined) updateData.videoLink = videoLink || null;
     if (gpsFix) updateData.gpsFix = gpsFix;
     if (minHDOP !== undefined) updateData.minHDOP = parseFloat(minHDOP);
     if (minSatCount !== undefined)
@@ -304,11 +387,15 @@ const updateDroneOS = async (req, res) => {
     if (gpsName) updateData.gpsName = gpsName;
     if (maxAltitude !== undefined)
       updateData.maxAltitude = parseFloat(maxAltitude);
+    if (areaId !== undefined) updateData.areaId = areaId || null;
 
     // Update drone OS
     const updatedDroneOS = await prisma.droneOS.update({
       where: { id },
       data: updateData,
+      include: {
+        area: true,
+      },
     });
 
     res.status(200).json({
@@ -362,10 +449,55 @@ const deleteDroneOS = async (req, res) => {
   }
 };
 
+// @desc    Get drones by area ID
+// @route   GET /api/droneos/area/:areaId
+// @access  Public
+const getDronesByArea = async (req, res) => {
+  try {
+    const { areaId } = req.params;
+    const { include } = req.query;
+
+    // Verify area exists
+    const areaExists = await prisma.area.findUnique({
+      where: { id: areaId },
+    });
+
+    if (!areaExists) {
+      return res.status(404).json({
+        success: false,
+        error: "Area not found",
+      });
+    }
+
+    const drones = await prisma.droneOS.findMany({
+      where: { areaId },
+      include: {
+        area: include === "true",
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      count: drones.length,
+      data: drones,
+    });
+  } catch (error) {
+    console.error("Error fetching drones by area:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch drones",
+    });
+  }
+};
+
 export {
   getAllDroneOS,
   getDroneOSById,
   createDroneOS,
   updateDroneOS,
   deleteDroneOS,
+  getDronesByArea,
 };

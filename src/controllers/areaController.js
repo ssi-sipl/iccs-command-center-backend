@@ -12,6 +12,7 @@ const getAllAreas = async (req, res) => {
       include: {
         sensors: include === "true",
         alarms: include === "true",
+        drones: include === "true",
       },
       orderBy: {
         createdAt: "desc",
@@ -24,7 +25,6 @@ const getAllAreas = async (req, res) => {
       data: areas,
     });
   } catch (error) {
-    c;
     console.error("Error at areaController/getAllAreas:", error);
     res.status(500).json({
       success: false,
@@ -46,6 +46,7 @@ const getAreaById = async (req, res) => {
       include: {
         sensors: include === "true",
         alarms: include === "true",
+        drones: include === "true",
       },
     });
 
@@ -228,6 +229,7 @@ const deleteArea = async (req, res) => {
       include: {
         sensors: true,
         alarms: true,
+        drones: true,
       },
     });
 
@@ -238,7 +240,7 @@ const deleteArea = async (req, res) => {
       });
     }
 
-    // Delete area (cascade will delete related sensors and alarms)
+    // Delete area (cascade will delete related sensors and alarms, drones will be set to null)
     await prisma.area.delete({
       where: { id },
     });
@@ -249,6 +251,7 @@ const deleteArea = async (req, res) => {
       deletedRelations: {
         sensors: existingArea.sensors.length,
         alarms: existingArea.alarms.length,
+        drones: existingArea.drones.length,
       },
     });
   } catch (error) {

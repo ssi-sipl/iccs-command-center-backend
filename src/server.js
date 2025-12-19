@@ -13,6 +13,7 @@ import alarmRoutes from "./routers/alarmRouter.js";
 import alertRoutes from "./routers/alertRouter.js";
 import mapRoutes from "./routers/mapRoutes.js";
 import rtspRoutes from "./routers/rtspRouter.js";
+import flightHistoryRoutes from "./routers/flightHistoryRouter.js";
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use("/api/alarms", alarmRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/maps", mapRoutes);
 app.use("/api/rtsp", rtspRoutes);
+app.use("/api/flight-history", flightHistoryRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

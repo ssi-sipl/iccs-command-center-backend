@@ -5,6 +5,7 @@ import {
   createDroneOS,
   updateDroneOS,
   deleteDroneOS,
+  getDronesByArea,
 } from "../controllers/droneosController.js";
 
 const router = Router();
@@ -16,5 +17,7 @@ router
   .get(getDroneOSById)
   .put(updateDroneOS)
   .delete(deleteDroneOS);
+
+router.get("/area/:areaId", getDronesByArea);
 
 export default router;

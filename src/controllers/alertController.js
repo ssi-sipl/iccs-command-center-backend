@@ -161,6 +161,11 @@ async function getAlertById(req, res) {
             area: true,
           },
         },
+        flightHistory: {
+          include: {
+            drone: true,
+          },
+        },
       },
     });
 
@@ -213,7 +218,7 @@ async function deleteAlert(req, res) {
       });
     }
 
-    // Delete the alert
+    // Delete the alert (cascade will delete related flight history)
     await prisma.alert.delete({
       where: { id },
     });
@@ -248,11 +253,12 @@ async function deleteAlert(req, res) {
  *
  * Body:
  * {
- *   droneId: "DRONE-1"      // required
+ *   droneId: "DRONE-1"      // required (Mongo ObjectId of the drone)
  * }
  *
  * Effect:
  *  - If alert is ACTIVE → set status = SENT, decision = "send_drone:DRONE-1"
+ *  - Create a DroneFlightHistory record to track the dispatch
  */
 async function sendDroneForAlert(req, res) {
   try {
@@ -266,6 +272,7 @@ async function sendDroneForAlert(req, res) {
       });
     }
 
+    // Find the drone
     const drone = await prisma.droneOS.findUnique({
       where: { id: droneId },
     });
@@ -277,8 +284,12 @@ async function sendDroneForAlert(req, res) {
       });
     }
 
+    // Find the alert with sensor info
     const alert = await prisma.alert.findUnique({
       where: { id },
+      include: {
+        sensor: true,
+      },
     });
 
     if (!alert) {
@@ -297,6 +308,7 @@ async function sendDroneForAlert(req, res) {
 
     const decision = `send_drone:${drone.id}`;
 
+    // Update alert status
     const updated = await prisma.alert.update({
       where: { id },
       data: {
@@ -306,10 +318,33 @@ async function sendDroneForAlert(req, res) {
       },
     });
 
+    // Create flight history record
+    const flightHistory = await prisma.droneFlightHistory.create({
+      data: {
+        droneDbId: drone.id,
+        alertDbId: alert.id,
+        sensorDbId: alert.sensorDbId,
+        areaDbId: alert.sensor.areaId || null,
+        droneId: drone.droneId,
+        sensorId: alert.sensorId,
+        alertId: alert.id,
+        status: "Dispatched",
+        dispatchedAt: new Date(),
+      },
+      include: {
+        drone: true,
+        sensor: true,
+        area: true,
+      },
+    });
+
+    // Prepare MQTT payload
     const mqttPayload = {
       alert: updated,
+      flightHistory: flightHistory,
       drone: {
         id: drone.id,
+        droneId: drone.droneId,
         droneOSName: drone.droneOSName,
         droneType: drone.droneType,
         gpsFix: drone.gpsFix,
@@ -336,7 +371,11 @@ async function sendDroneForAlert(req, res) {
 
     try {
       const io = getIo();
-      io.emit("alert_resolved", { id: updated.id, status: updated.status });
+      io.emit("alert_resolved", {
+        id: updated.id,
+        status: updated.status,
+        flightHistory: flightHistory,
+      });
     } catch (e) {
       console.error(
         "Socket not initialized, cannot emit alert_resolved:",
@@ -348,8 +387,10 @@ async function sendDroneForAlert(req, res) {
       success: true,
       data: {
         alert: updated,
+        flightHistory: flightHistory,
         drone: {
           id: drone.id,
+          droneId: drone.droneId,
           name: drone.droneOSName,
           type: drone.droneType,
         },
@@ -485,6 +526,11 @@ async function getAlertsBySensor(req, res) {
             area: true,
           },
         },
+        flightHistory: {
+          include: {
+            drone: true,
+          },
+        },
       },
     });
 
@@ -551,6 +597,11 @@ async function getAllAlerts(req, res) {
         sensor: {
           include: {
             area: true,
+          },
+        },
+        flightHistory: {
+          include: {
+            drone: true,
           },
         },
       },
