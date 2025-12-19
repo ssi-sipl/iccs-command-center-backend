@@ -44,16 +44,15 @@ async function handleNxAlert(req, res) {
     const existingActive = await prisma.alert.findFirst({
       where: {
         sensorDbId: sensor.id,
-        status: "ACTIVE", // matches your AlertStatus enum
+        status: "ACTIVE",
       },
     });
 
     if (existingActive) {
-      // Business rule: do NOT create a new one, just return existing
       return res.status(200).json({
         success: true,
         data: existingActive,
-        skipped: true, // optional flag so you know a new alert was not created
+        skipped: true,
       });
     }
 
@@ -61,7 +60,6 @@ async function handleNxAlert(req, res) {
       where: { id: sensor.areaId },
     });
 
-    // Attach area info to sensor for broadcasting
     sensor.areaName = area ? area.name : "Unknown Area";
     sensor.areaId = area ? area.areaId : "Unknown AreaId";
 
@@ -72,17 +70,15 @@ async function handleNxAlert(req, res) {
 
     const newAlert = await prisma.alert.create({
       data: {
-        sensorDbId: sensor.id, // relation FK -> Sensor.id
-        sensorId: sensor.sensorId, // business ID for debugging / UI
+        sensorDbId: sensor.id,
+        sensorId: sensor.sensorId,
         type: alertType,
         message: alertMessage,
-        status: "ACTIVE", // AlertStatus enum value
+        status: "ACTIVE",
         metadata: metadata || undefined,
       },
     });
 
-    // 4) Optionally broadcast via WebSocket / Socket.IO here
-    //    e.g. io.emit("alert_active", newAlert)
     const payload = {
       ...newAlert,
       sensor: {
@@ -98,7 +94,6 @@ async function handleNxAlert(req, res) {
       },
     };
 
-    // 🔥 broadcast to all connected clients
     try {
       const io = getIo();
       io.emit("alert_active", payload);
@@ -126,7 +121,6 @@ async function handleNxAlert(req, res) {
  * INTERNAL helper – change alert status with decision
  */
 async function setAlertStatus(id, status, decision) {
-  // Only ACTIVE alerts can be transitioned
   const alert = await prisma.alert.findUnique({ where: { id } });
   if (!alert) return null;
   if (alert.status !== "ACTIVE") return null;
@@ -144,11 +138,117 @@ async function setAlertStatus(id, status, decision) {
 }
 
 /**
+ * GET /api/alerts/:id
+ *
+ * - Get a single alert by ID with full details
+ */
+async function getAlertById(req, res) {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: "Alert ID is required",
+      });
+    }
+
+    const alert = await prisma.alert.findUnique({
+      where: { id },
+      include: {
+        sensor: {
+          include: {
+            area: true,
+          },
+        },
+      },
+    });
+
+    if (!alert) {
+      return res.status(404).json({
+        success: false,
+        error: "Alert not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: alert,
+    });
+  } catch (err) {
+    console.error("Error in getAlertById:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+}
+
+/**
+ * DELETE /api/alerts/:id
+ *
+ * - Delete an alert by ID
+ * - Can delete alerts in any status
+ */
+async function deleteAlert(req, res) {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: "Alert ID is required",
+      });
+    }
+
+    // Check if alert exists
+    const alert = await prisma.alert.findUnique({
+      where: { id },
+    });
+
+    if (!alert) {
+      return res.status(404).json({
+        success: false,
+        error: "Alert not found",
+      });
+    }
+
+    // Delete the alert
+    await prisma.alert.delete({
+      where: { id },
+    });
+
+    // Broadcast deletion via WebSocket
+    try {
+      const io = getIo();
+      io.emit("alert_deleted", { id });
+    } catch (e) {
+      console.error(
+        "Socket not initialized, cannot emit alert_deleted:",
+        e.message
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: "Alert deleted successfully",
+      data: { id },
+    });
+  } catch (err) {
+    console.error("Error in deleteAlert:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+}
+
+/**
  * POST /api/alerts/:id/send-drone
  *
  * Body:
  * {
- *   droneId?: "DRONE-1"      // optional for now
+ *   droneId: "DRONE-1"      // required
  * }
  *
  * Effect:
@@ -156,10 +256,9 @@ async function setAlertStatus(id, status, decision) {
  */
 async function sendDroneForAlert(req, res) {
   try {
-    const { id } = req.params; // alertId
-    const { droneId } = req.body || {}; // Mongo _id of DroneOS
+    const { id } = req.params;
+    const { droneId } = req.body || {};
 
-    // ✅ 1. Validate droneId is provided
     if (!droneId) {
       return res.status(400).json({
         success: false,
@@ -167,7 +266,6 @@ async function sendDroneForAlert(req, res) {
       });
     }
 
-    // ✅ 2. Check whether the drone actually exists
     const drone = await prisma.droneOS.findUnique({
       where: { id: droneId },
     });
@@ -179,7 +277,6 @@ async function sendDroneForAlert(req, res) {
       });
     }
 
-    // ✅ 3. Ensure the alert exists AND is ACTIVE
     const alert = await prisma.alert.findUnique({
       where: { id },
     });
@@ -198,7 +295,6 @@ async function sendDroneForAlert(req, res) {
       });
     }
 
-    // ✅ 4. Mark alert as SENT (atomic update)
     const decision = `send_drone:${drone.id}`;
 
     const updated = await prisma.alert.update({
@@ -210,15 +306,6 @@ async function sendDroneForAlert(req, res) {
       },
     });
 
-    // ✅ 5. ACTUAL DRONE TRIGGER POINT (you plug Mission Planner here)
-    /*
-      await triggerDroneMission({
-        droneId: drone.id,
-        sensorId: alert.sensorId,
-        latitude: alert.sensor?.latitude,
-        longitude: alert.sensor?.longitude,
-      });
-    */
     const mqttPayload = {
       alert: updated,
       drone: {
@@ -246,9 +333,6 @@ async function sendDroneForAlert(req, res) {
     } catch (e) {
       // already logged inside publishJson
     }
-
-    // ✅ 6. WebSocket broadcast (if using Socket.IO)
-    // io.emit("alert_resolved", { id, status: "SENT", droneId: drone.id });
 
     try {
       const io = getIo();
@@ -307,7 +391,6 @@ async function neutraliseAlert(req, res) {
       });
     }
 
-    // TODO: broadcast via WebSocket: io.emit("alert_resolved", { id, status: "NEUTRALISED" });
     try {
       const io = getIo();
       io.emit("alert_resolved", { id: updated.id, status: updated.status });
@@ -343,7 +426,11 @@ async function getActiveAlerts(req, res) {
       where: { status: "ACTIVE" },
       orderBy: { createdAt: "asc" },
       include: {
-        sensor: true, // so UI can show sensor name, location, etc.
+        sensor: {
+          include: {
+            area: true,
+          },
+        },
       },
     });
 
@@ -361,15 +448,14 @@ async function getActiveAlerts(req, res) {
 }
 
 /**
- * GET /api/alerts/by-sensor/:sensorId
+ * GET /api/alerts/by-sensor/:sensorDbId
  *
  * - Fetch alert history for a particular sensor.
  */
 async function getAlertsBySensor(req, res) {
   try {
-    const { sensorDbId } = req.params; // Mongo ObjectId of Sensor
+    const { sensorDbId } = req.params;
 
-    // ✅ 1. Validate input
     if (!sensorDbId) {
       return res.status(400).json({
         success: false,
@@ -377,7 +463,6 @@ async function getAlertsBySensor(req, res) {
       });
     }
 
-    // ✅ 2. (Optional but recommended) Verify sensor exists
     const sensor = await prisma.sensor.findUnique({
       where: { id: sensorDbId },
     });
@@ -389,13 +474,18 @@ async function getAlertsBySensor(req, res) {
       });
     }
 
-    // ✅ 3. Fetch alerts using sensorDbId (CORRECT FK)
     const alerts = await prisma.alert.findMany({
       where: {
         sensorDbId: sensorDbId,
-        // status: "ACTIVE", // uncomment if you ONLY want active alerts
       },
       orderBy: { createdAt: "desc" },
+      include: {
+        sensor: {
+          include: {
+            area: true,
+          },
+        },
+      },
     });
 
     return res.json({
@@ -403,7 +493,7 @@ async function getAlertsBySensor(req, res) {
       data: alerts,
     });
   } catch (err) {
-    console.error("Error in getAlertsBySensorDbId:", err);
+    console.error("Error in getAlertsBySensor:", err);
     return res.status(500).json({
       success: false,
       error: "Internal server error",
@@ -435,19 +525,15 @@ async function getAllAlerts(req, res) {
       sortOrder = "desc",
     } = req.query;
 
-    // Build the where clause
     const whereClause = {};
 
-    // Add status filter if provided
     if (status && ["ACTIVE", "SENT", "NEUTRALISED"].includes(status)) {
       whereClause.status = status;
     }
 
-    // Parse pagination params
     const limitNum = parseInt(limit, 10) || 100;
     const skipNum = parseInt(skip, 10) || 0;
 
-    // Validate sort params
     const validSortFields = ["createdAt", "decidedAt"];
     const validSortOrders = ["asc", "desc"];
 
@@ -456,7 +542,6 @@ async function getAllAlerts(req, res) {
       ? sortOrder
       : "desc";
 
-    // Fetch alerts with sensor details
     const alerts = await prisma.alert.findMany({
       where: whereClause,
       orderBy: { [sortField]: sortDirection },
@@ -465,13 +550,12 @@ async function getAllAlerts(req, res) {
       include: {
         sensor: {
           include: {
-            area: true, // Include area information for full context
+            area: true,
           },
         },
       },
     });
 
-    // Get total count for pagination metadata
     const totalCount = await prisma.alert.count({
       where: whereClause,
     });
@@ -501,5 +585,7 @@ export {
   neutraliseAlert,
   getActiveAlerts,
   getAlertsBySensor,
-  getAllAlerts, // Add this to your exports
+  getAllAlerts,
+  getAlertById,
+  deleteAlert,
 };
