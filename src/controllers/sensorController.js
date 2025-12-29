@@ -38,6 +38,176 @@ const getAllSensors = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/sensors/:sensorDbId/send-drone
+ *
+ * Body:
+ * {
+ *   droneId: "DRONE_DB_ID"   // required
+ * }
+ *
+ * Effect:
+ *  - Dispatch a drone directly to a sensor (no alert involved)
+ *  - Create a DroneFlightHistory record with alertDbId = null
+ */
+async function sendDroneToSensor(req, res) {
+  try {
+    const { sensorDbId } = req.params;
+    const { droneId } = req.body || {};
+
+    if (!sensorDbId) {
+      return res.status(400).json({
+        success: false,
+        error: "sensorDbId is required",
+      });
+    }
+
+    if (!droneId) {
+      return res.status(400).json({
+        success: false,
+        error: "droneId is required",
+      });
+    }
+
+    // Find sensor
+    const sensor = await prisma.sensor.findUnique({
+      where: { id: sensorDbId },
+      include: {
+        area: true,
+      },
+    });
+
+    if (!sensor) {
+      return res.status(404).json({
+        success: false,
+        error: "Sensor not found",
+      });
+    }
+
+    // Find drone
+    const drone = await prisma.droneOS.findUnique({
+      where: { id: droneId },
+    });
+
+    if (!drone) {
+      return res.status(404).json({
+        success: false,
+        error: "Drone not found",
+      });
+    }
+
+    // Create flight history (no alert)
+    const flightHistory = await prisma.droneFlightHistory.create({
+      data: {
+        // ❌ remove droneDbId, sensorDbId, areaDbId, alertDbId
+
+        droneId: drone.droneId, // business ID string
+        sensorId: sensor.sensorId, // business ID string
+        alertId: null,
+
+        status: "Dispatched",
+        dispatchedAt: new Date(),
+
+        // ✅ connect relations
+        drone: {
+          connect: { id: drone.id },
+        },
+        sensor: {
+          connect: { id: sensor.id },
+        },
+        ...(sensor.areaId && {
+          area: {
+            connect: { id: sensor.areaId },
+          },
+        }),
+      },
+      include: {
+        drone: true,
+        sensor: true,
+        area: true,
+      },
+    });
+
+    // MQTT payload
+    const mqttPayload = {
+      mode: "manual_dispatch",
+      flightHistory,
+      drone: {
+        id: drone.id,
+        droneId: drone.droneId,
+        droneOSName: drone.droneOSName,
+        droneType: drone.droneType,
+        gpsFix: drone.gpsFix,
+        minHDOP: drone.minHDOP,
+        minSatCount: drone.minSatCount,
+        maxWindSpeed: drone.maxWindSpeed,
+        droneSpeed: drone.droneSpeed,
+        targetAltitude: drone.targetAltitude,
+        gpsLost: drone.gpsLost,
+        telemetryLost: drone.telemetryLost,
+        minBatteryLevel: drone.minBatteryLevel,
+        usbAddress: drone.usbAddress,
+        batteryFailSafe: drone.batteryFailSafe,
+        gpsName: drone.gpsName,
+        maxAltitude: drone.maxAltitude,
+      },
+      sensor: {
+        id: sensor.id,
+        sensorId: sensor.sensorId,
+        name: sensor.name,
+        latitude: sensor.latitude,
+        longitude: sensor.longitude,
+        area: sensor.area
+          ? { id: sensor.area.id, name: sensor.area.name }
+          : null,
+      },
+    };
+
+    try {
+      await publishJson("drone", mqttPayload);
+    } catch (e) {
+      // already logged
+    }
+
+    // Emit socket event
+    try {
+      const io = getIo();
+      io.emit("drone_dispatched_manual", {
+        flightHistory,
+      });
+    } catch (e) {
+      console.error(
+        "Socket not initialized, cannot emit drone_dispatched_manual:",
+        e.message
+      );
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        flightHistory,
+        drone: {
+          id: drone.id,
+          droneId: drone.droneId,
+          name: drone.droneOSName,
+          type: drone.droneType,
+        },
+        sensor: {
+          id: sensor.id,
+          sensorId: sensor.sensorId,
+          name: sensor.name,
+        },
+      },
+    });
+  } catch (err) {
+    console.error("Error in sendDroneToSensor:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+}
+
 // @desc    Get single sensor by ID
 // @route   GET /api/sensors/:id
 // @access  Public
@@ -429,6 +599,7 @@ const getSensorsByArea = async (req, res) => {
 
 export {
   getAllSensors,
+  sendDroneToSensor,
   getSensorById,
   createSensor,
   updateSensor,

@@ -157,8 +157,8 @@ model DroneFlightHistory {
   droneDbId       String   @db.ObjectId
   drone           DroneOS  @relation(fields: [droneDbId], references: [id], onDelete: Cascade)
   
-  alertDbId       String   @db.ObjectId
-  alert           Alert    @relation(fields: [alertDbId], references: [id], onDelete: Cascade)
+  alertDbId       String?   @db.ObjectId
+  alert           Alert?    @relation(fields: [alertDbId], references: [id], onDelete: Cascade)
   
   sensorDbId      String   @db.ObjectId
   sensor          Sensor   @relation(fields: [sensorDbId], references: [id], onDelete: Cascade)
