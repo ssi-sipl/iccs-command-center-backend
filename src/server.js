@@ -14,6 +14,7 @@ import alertRoutes from "./routers/alertRouter.js";
 import mapRoutes from "./routers/mapRoutes.js";
 import rtspRoutes from "./routers/rtspRouter.js";
 import flightHistoryRoutes from "./routers/flightHistoryRouter.js";
+import { initDroneMqttListener } from "./lib/droneMqttListener.js";
 
 const app = express();
 
@@ -50,6 +51,8 @@ const PORT = process.env.PORT || 5000;
 
 const server = http.createServer(app);
 initSocket(server);
+
+initDroneMqttListener();
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
