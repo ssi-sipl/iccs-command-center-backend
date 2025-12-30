@@ -5,25 +5,27 @@ import {
   getFlightHistoryByDrone,
   getFlightHistoryBySensor,
   getFlightHistoryByAlert,
-  updateFlightHistory,
   deleteFlightHistory,
-  getFlightStatistics,
 } from "../controllers/flightHistoryController.js";
 
 const router = express.Router();
 
-// Stats route - must come before /:id to avoid conflicts
-router.get("/stats", getFlightStatistics);
+/**
+ * IMPORTANT:
+ * Specific routes MUST come before `/:id`
+ * Otherwise Express will treat "drone" as an ID
+ */
 
-// Main routes
-router.get("/", getAllFlightHistory);
-router.get("/:id", getFlightHistoryById);
-router.put("/:id", updateFlightHistory);
-router.delete("/:id", deleteFlightHistory);
-
-// Filter routes
-router.get("/drone/:droneId", getFlightHistoryByDrone);
+// ---- Filtered routes ----
+router.get("/drone/:droneDbId", getFlightHistoryByDrone);
 router.get("/sensor/:sensorId", getFlightHistoryBySensor);
 router.get("/alert/:alertId", getFlightHistoryByAlert);
+
+// ---- Main routes ----
+router.get("/", getAllFlightHistory);
+router.get("/:id", getFlightHistoryById);
+
+// ---- Destructive (should be protected in prod) ----
+router.delete("/:id", deleteFlightHistory);
 
 export default router;
