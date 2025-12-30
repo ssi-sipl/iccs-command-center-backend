@@ -158,8 +158,8 @@ model DroneFlightHistory {
   
   // Business IDs for easy reference
   // droneId         String   // e.g., "DRONE-001"
-  sensorId        String   // e.g., "SENSOR-001"
-  alertId         String   // The alert ID that triggered this flight
+  sensorId        String?   // e.g., "SENSOR-001"
+  alertId         String?   // The alert ID that triggered this flight
   
   // Flight details
   dispatchedAt    DateTime @default(now())

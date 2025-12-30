@@ -15,6 +15,7 @@ import mapRoutes from "./routers/mapRoutes.js";
 import rtspRoutes from "./routers/rtspRouter.js";
 import flightHistoryRoutes from "./routers/flightHistoryRouter.js";
 import { initDroneMqttListener } from "./lib/droneMqttListener.js";
+import droneCommandRoutes from "./routers/droneCommandRouter.js";
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use("/api/alerts", alertRoutes);
 app.use("/api/maps", mapRoutes);
 app.use("/api/rtsp", rtspRoutes);
 app.use("/api/flight-history", flightHistoryRoutes);
+app.use("/api/drone-command", droneCommandRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
