@@ -94,26 +94,30 @@ const createDroneOS = async (req, res) => {
       gpsName,
       maxAltitude,
       areaId,
+      latitude,
+      longitude,
     } = req.body;
 
     // Validation - required fields
     if (
-      !droneId ||
-      !droneOSName ||
-      !droneType ||
-      !gpsFix ||
-      minHDOP === undefined ||
-      minSatCount === undefined ||
-      maxWindSpeed === undefined ||
-      droneSpeed === undefined ||
-      targetAltitude === undefined ||
-      !gpsLost ||
-      !telemetryLost ||
-      minBatteryLevel === undefined ||
-      !usbAddress ||
-      !batteryFailSafe ||
-      !gpsName ||
-      maxAltitude === undefined
+      (!droneId ||
+        !droneOSName ||
+        !droneType ||
+        !gpsFix ||
+        minHDOP === undefined ||
+        minSatCount === undefined ||
+        maxWindSpeed === undefined ||
+        droneSpeed === undefined ||
+        targetAltitude === undefined ||
+        !gpsLost ||
+        !telemetryLost ||
+        minBatteryLevel === undefined ||
+        !usbAddress ||
+        !batteryFailSafe ||
+        !gpsName ||
+        maxAltitude === undefined,
+      !latitude,
+      !longitude)
     ) {
       return res.status(400).json({
         success: false,
@@ -220,6 +224,8 @@ const createDroneOS = async (req, res) => {
         gpsName,
         maxAltitude: parseFloat(maxAltitude),
         areaId: areaId || null,
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
       },
       include: {
         area: true,
@@ -265,6 +271,8 @@ const updateDroneOS = async (req, res) => {
       gpsName,
       maxAltitude,
       areaId,
+      latitude,
+      longitude,
     } = req.body;
 
     // Check if drone OS exists
@@ -388,6 +396,8 @@ const updateDroneOS = async (req, res) => {
     if (maxAltitude !== undefined)
       updateData.maxAltitude = parseFloat(maxAltitude);
     if (areaId !== undefined) updateData.areaId = areaId || null;
+    if (latitude !== undefined) updateData.latitude = parseFloat(latitude);
+    if (longitude !== undefined) updateData.longitude = parseFloat(longitude);
 
     // Update drone OS
     const updatedDroneOS = await prisma.droneOS.update({

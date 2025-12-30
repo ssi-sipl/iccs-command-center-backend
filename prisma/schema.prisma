@@ -34,7 +34,6 @@ model Area {
   sensors       Sensor[]
   alarms        Alarm[]
   drones        DroneOS[]
-  flightHistory DroneFlightHistory[]
 
   @@map("areas")
 }
@@ -63,7 +62,6 @@ model Sensor {
   alarm   Alarm?  @relation(fields: [alarmId], references: [id], onDelete: SetNull)
 
   alerts        Alert[]
-  flightHistory DroneFlightHistory[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -90,6 +88,8 @@ model DroneOS {
   batteryFailSafe   String   // Action on battery fail safe (RTL, Land)
   gpsName           String   // GPS Name
   maxAltitude       Float    // Max Altitude in meters
+  latitude          Float?    // Home Latitude
+  longitude         Float?    // Home Longitude
   
   // Relations
   areaId        String? @db.ObjectId
@@ -143,7 +143,6 @@ model Alert {
   metadata  Json?
 
   // Relations
-  flightHistory DroneFlightHistory[]
 
   @@map("alerts")
   @@index([status])
@@ -157,42 +156,30 @@ model DroneFlightHistory {
   droneDbId       String   @db.ObjectId
   drone           DroneOS  @relation(fields: [droneDbId], references: [id], onDelete: Cascade)
   
-  alertDbId       String?   @db.ObjectId
-  alert           Alert?    @relation(fields: [alertDbId], references: [id], onDelete: Cascade)
-  
-  sensorDbId      String   @db.ObjectId
-  sensor          Sensor   @relation(fields: [sensorDbId], references: [id], onDelete: Cascade)
-  
-  areaDbId        String?  @db.ObjectId
-  area            Area?    @relation(fields: [areaDbId], references: [id], onDelete: SetNull)
-  
   // Business IDs for easy reference
-  droneId         String   // e.g., "DRONE-001"
+  // droneId         String   // e.g., "DRONE-001"
   sensorId        String   // e.g., "SENSOR-001"
   alertId         String   // The alert ID that triggered this flight
   
   // Flight details
   dispatchedAt    DateTime @default(now())
-  completedAt     DateTime?
-  status          String   // e.g., "Dispatched", "In Flight", "Completed", "Aborted"
+  // completedAt     DateTime?
+  // status          String   // e.g., "Dispatched", "In Flight", "Completed", "Aborted"
   
   // Optional flight data
-  flightDuration  Int?     // Duration in seconds
-  batteryUsed     Float?   // Battery percentage used
-  maxAltitude     Float?   // Max altitude reached during flight
-  distanceCovered Float?   // Distance covered in meters
+  // flightDuration  Int?     // Duration in seconds
+  // batteryUsed     Float?   // Battery percentage used
+  // maxAltitude     Float?   // Max altitude reached during flight
+  // distanceCovered Float?   // Distance covered in meters
   
-  notes           String?  // Any additional notes or observations
-  metadata        Json?    // Any additional data you want to store
+  // notes           String?  // Any additional notes or observations
+  // metadata        Json?    // Any additional data you want to store
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@map("drone_flight_history")
   @@index([droneDbId])
-  @@index([alertDbId])
-  @@index([sensorDbId])
-  @@index([status])
   @@index([dispatchedAt])
 }
 
