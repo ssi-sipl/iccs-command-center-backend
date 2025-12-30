@@ -82,7 +82,7 @@ export const sendDrone = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Drone command sent successfully",
-      flightId: newFlight.id,
+      flightId: newFlight,
     });
   } catch (error) {
     console.error("Error at droneCommandController.js/sendDrone:", error);
