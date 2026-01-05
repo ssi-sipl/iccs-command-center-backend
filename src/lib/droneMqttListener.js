@@ -1,10 +1,9 @@
+// droneMqttListener.js
 import { getMqttClient } from "./mqttClient.js";
 import { getIo } from "./socket.js";
-import prisma from "./prisma.js"; // adjust path if needed
+import prisma from "./prisma.js";
 
 const DRONE_TOPIC = "drones/+/telemetry";
-// example: drones/DRONE-001/telemetry
-
 let initialized = false;
 
 export function initDroneMqttListener() {
@@ -15,14 +14,7 @@ export function initDroneMqttListener() {
 
   client.on("connect", () => {
     console.log("[MQTT] Subscribing to", DRONE_TOPIC);
-
-    client.subscribe(DRONE_TOPIC, { qos: 1 }, (err) => {
-      if (err) {
-        console.error("[MQTT] Subscribe error:", err.message);
-      } else {
-        console.log("[MQTT] Subscribed to drone telemetry");
-      }
-    });
+    client.subscribe(DRONE_TOPIC, { qos: 1 });
   });
 
   client.on("message", async (topic, message) => {
@@ -30,21 +22,20 @@ export function initDroneMqttListener() {
       if (!topic.startsWith("drones/")) return;
 
       const payload = JSON.parse(message.toString());
-      const { droneId, lat, lng, alt } = payload;
+      console.log("[MQTT] Payload:", payload);
 
-      console.log(
-        "[MQTT] Message received on topic:",
-        topic,
-        "Payload:",
-        payload
-      );
+      // Normalize fields (VERY IMPORTANT)
+      const droneId = payload.droneid || payload.droneId;
+      const lat = payload.currentLatitude ?? payload.lat;
+      const lng = payload.currentLongitude ?? payload.lng;
+      const alt = payload.currentAltitude ?? payload.alt;
 
       if (!droneId || typeof lat !== "number" || typeof lng !== "number") {
-        console.warn("[MQTT] Invalid drone payload:", payload);
+        console.warn("[MQTT] Invalid telemetry payload");
         return;
       }
 
-      // Validate drone from DB (optional but recommended)
+      // Validate drone
       const drone = await prisma.droneOS.findUnique({
         where: { droneId },
         select: { id: true, droneId: true },
@@ -55,24 +46,47 @@ export function initDroneMqttListener() {
         return;
       }
 
-      const data = {
-        id: drone.id, // DB id
-        droneId: drone.droneId,
+      // Build unified telemetry object
+      const telemetry = {
+        droneDbId: drone.id,
+        droneId,
         lat,
         lng,
         alt: alt ?? null,
+        speed: payload.droneSpeed ?? null,
+        battery: payload.batteryVoltage ?? null,
+        mode: payload.droneMode ?? null,
+        gpsFix: payload.GPSFix ?? null,
+        satellites: payload.satelliteCount ?? null,
+        windSpeed: payload.windSpeed ?? null,
+        targetDistance: payload.targetDistance ?? null,
+        status: payload.status ?? null,
+        command: payload.command ?? null,
         ts: Date.now(),
       };
 
-      console.log("[MQTT] Drone Coordinates received:", data);
-
+      // 🔥 Emit to frontend
       const io = getIo();
-      io.emit("drone_position", data);
+      io.emit("drone_telemetry", telemetry);
 
-      // Optional: log
-      // console.log("[MQTT] Drone update:", data);
+      // 🧠 Optional: persist latest state (recommended)
+      if (payload.command === "altitudeData") {
+        await prisma.droneOS.update({
+          where: { id: drone.id },
+          data: {
+            lastLatitude: lat,
+            lastLongitude: lng,
+            lastAltitude: alt,
+            battery: payload.batteryVoltage ?? undefined,
+            droneMode: payload.droneMode ?? undefined,
+            updatedAt: new Date(),
+          },
+        });
+      }
+
+      console.log("[MQTT] Telemetry processed:", droneId);
     } catch (err) {
-      console.error("[MQTT] Message handling error:", err.message);
+      console.error("[MQTT] Message error:", err.message);
     }
   });
 }

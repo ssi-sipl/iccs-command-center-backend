@@ -92,3 +92,177 @@ export const sendDrone = async (req, res) => {
     });
   }
 };
+
+export const dropPayload = async (req, res) => {
+  try {
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        error: "Request body is missing",
+      });
+    }
+
+    const { droneDbId } = req.body;
+    // sensorId and alertId are optional
+    // droneDbId - droneId, areaId, targetAltitude
+    // targetLatitude
+    // targetLongitude
+    // usbAdress
+
+    if (!droneDbId) {
+      return res.status(400).json({
+        success: false,
+        error: "droneId is required",
+      });
+    }
+
+    const drone = await prisma.droneOS.findUnique({
+      where: { id: droneDbId },
+      include: { area: true },
+    });
+
+    if (!drone) {
+      return res.status(404).json({
+        success: false,
+        error: "Drone not found",
+      });
+    }
+
+    const droneData = {
+      droneId: drone.droneId,
+      event: "drop_payload",
+      areaId: drone.area.areaId,
+    };
+
+    console.log("Publishing to MQTT:", droneData);
+
+    await publishJson(DRONE_COMMAND_TOPIC, droneData);
+
+    res.status(200).json({
+      success: true,
+      message: "Drone command sent successfully",
+    });
+  } catch (error) {
+    console.error("Error at droneCommandController.js/sendDrone:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to send drone",
+    });
+  }
+};
+
+export const recallDrone = async (req, res) => {
+  try {
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        error: "Request body is missing",
+      });
+    }
+
+    const { droneDbId } = req.body;
+    // sensorId and alertId are optional
+    // droneDbId - droneId, areaId, targetAltitude
+    // targetLatitude
+    // targetLongitude
+    // usbAdress
+
+    if (!droneDbId) {
+      return res.status(400).json({
+        success: false,
+        error: "droneId is required",
+      });
+    }
+
+    const drone = await prisma.droneOS.findUnique({
+      where: { id: droneDbId },
+      include: { area: true },
+    });
+
+    if (!drone) {
+      return res.status(404).json({
+        success: false,
+        error: "Drone not found",
+      });
+    }
+
+    const droneData = {
+      droneId: drone.droneId,
+      event: "recall_drone",
+      areaId: drone.area.areaId,
+    };
+
+    console.log("Publishing to MQTT:", droneData);
+
+    await publishJson(DRONE_COMMAND_TOPIC, droneData);
+
+    res.status(200).json({
+      success: true,
+      message: "Drone command sent successfully",
+    });
+  } catch (error) {
+    console.error("Error at droneCommandController.js/sendDrone:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to send drone",
+    });
+  }
+};
+
+export const dronePatrol = async (req, res) => {
+  try {
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        error: "Request body is missing",
+      });
+    }
+
+    const { droneDbId } = req.body;
+    // sensorId and alertId are optional
+    // droneDbId - droneId, areaId, targetAltitude
+    // targetLatitude
+    // targetLongitude
+    // usbAdress
+
+    if (!droneDbId) {
+      return res.status(400).json({
+        success: false,
+        error: "droneId is required",
+      });
+    }
+
+    const drone = await prisma.droneOS.findUnique({
+      where: { id: droneDbId },
+      include: { area: true },
+    });
+
+    if (!drone) {
+      return res.status(404).json({
+        success: false,
+        error: "Drone not found",
+      });
+    }
+
+    const droneData = {
+      droneId: drone.droneId,
+      event: "patrol",
+      areaId: drone.area.areaId,
+    };
+
+    console.log("Publishing to MQTT:", droneData);
+
+    await publishJson(DRONE_COMMAND_TOPIC, droneData);
+
+    res.status(200).json({
+      success: true,
+      message: "Drone command sent successfully",
+    });
+  } catch (error) {
+    console.error("Error at droneCommandController.js/sendDrone:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to send drone",
+    });
+  }
+};
