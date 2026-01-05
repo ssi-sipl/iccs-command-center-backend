@@ -178,6 +178,17 @@ const deleteFlightHistory = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const existing = await prisma.droneFlightHistory.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: "Flight history not found",
+      });
+    }
+
     await prisma.droneFlightHistory.delete({ where: { id } });
 
     res.status(200).json({

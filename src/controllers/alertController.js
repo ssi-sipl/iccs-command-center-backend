@@ -161,11 +161,6 @@ async function getAlertById(req, res) {
             area: true,
           },
         },
-        flightHistory: {
-          include: {
-            drone: true,
-          },
-        },
       },
     });
 
@@ -318,26 +313,6 @@ async function sendDroneForAlert(req, res) {
       },
     });
 
-    // Create flight history record
-    const flightHistory = await prisma.droneFlightHistory.create({
-      data: {
-        droneDbId: drone.id,
-        alertDbId: alert.id,
-        sensorDbId: alert.sensorDbId,
-        areaDbId: alert.sensor.areaId || null,
-        droneId: drone.droneId,
-        sensorId: alert.sensorId,
-        alertId: alert.id,
-        status: "Dispatched",
-        dispatchedAt: new Date(),
-      },
-      include: {
-        drone: true,
-        sensor: true,
-        area: true,
-      },
-    });
-
     // Prepare MQTT payload
     const mqttPayload = {
       alert: updated,
@@ -374,7 +349,6 @@ async function sendDroneForAlert(req, res) {
       io.emit("alert_resolved", {
         id: updated.id,
         status: updated.status,
-        flightHistory: flightHistory,
       });
     } catch (e) {
       console.error(
@@ -387,7 +361,7 @@ async function sendDroneForAlert(req, res) {
       success: true,
       data: {
         alert: updated,
-        flightHistory: flightHistory,
+
         drone: {
           id: drone.id,
           droneId: drone.droneId,
@@ -526,11 +500,6 @@ async function getAlertsBySensor(req, res) {
             area: true,
           },
         },
-        flightHistory: {
-          include: {
-            drone: true,
-          },
-        },
       },
     });
 
@@ -597,11 +566,6 @@ async function getAllAlerts(req, res) {
         sensor: {
           include: {
             area: true,
-          },
-        },
-        flightHistory: {
-          include: {
-            drone: true,
           },
         },
       },

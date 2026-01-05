@@ -1,5 +1,6 @@
 import prisma from "../lib/prisma.js";
 import { publishJson } from "../lib/mqttClient.js";
+import { getIo } from "../lib/socket.js";
 
 const DRONE_COMMAND_TOPIC = "drone";
 
@@ -47,6 +48,41 @@ export const sendDrone = async (req, res) => {
       return res.status(404).json({
         success: false,
         error: "Drone not found",
+      });
+    }
+    let alert = null;
+    if (alertId) {
+      alert = await prisma.alert.findUnique({
+        where: { id: alertId },
+        include: { sensor: true },
+      });
+      if (!alert) {
+        return res.status(404).json({
+          success: false,
+          error: "Alert not found",
+        });
+      }
+      if (alert.status !== "ACTIVE") {
+        return res.status(409).json({
+          success: false,
+          error: "Only ACTIVE alerts can dispatch a drone",
+        });
+      }
+      // Neutralize the alert
+      const decision = `send_drone:${drone.id}`;
+
+      const updated = await prisma.alert.update({
+        where: { id: alertId },
+        data: {
+          status: "SENT",
+          decidedAt: new Date(),
+          decision,
+        },
+      });
+      const io = getIo();
+      io.emit("alert_resolved", {
+        id: updated.id,
+        status: updated.status,
       });
     }
 

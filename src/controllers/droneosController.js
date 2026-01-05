@@ -100,24 +100,24 @@ const createDroneOS = async (req, res) => {
 
     // Validation - required fields
     if (
-      (!droneId ||
-        !droneOSName ||
-        !droneType ||
-        !gpsFix ||
-        minHDOP === undefined ||
-        minSatCount === undefined ||
-        maxWindSpeed === undefined ||
-        droneSpeed === undefined ||
-        targetAltitude === undefined ||
-        !gpsLost ||
-        !telemetryLost ||
-        minBatteryLevel === undefined ||
-        !usbAddress ||
-        !batteryFailSafe ||
-        !gpsName ||
-        maxAltitude === undefined,
-      !latitude,
-      !longitude)
+      !droneId ||
+      !droneOSName ||
+      !droneType ||
+      !gpsFix ||
+      minHDOP === undefined ||
+      minSatCount === undefined ||
+      maxWindSpeed === undefined ||
+      droneSpeed === undefined ||
+      targetAltitude === undefined ||
+      !gpsLost ||
+      !telemetryLost ||
+      minBatteryLevel === undefined ||
+      !usbAddress ||
+      !batteryFailSafe ||
+      !gpsName ||
+      maxAltitude === undefined ||
+      !latitude ||
+      !longitude
     ) {
       return res.status(400).json({
         success: false,
