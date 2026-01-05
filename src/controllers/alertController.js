@@ -594,6 +594,85 @@ async function getAllAlerts(req, res) {
   }
 }
 
+/**
+ * POST /api/alerts/neutralise-all
+ *
+ * Body (optional):
+ * {
+ *   reason?: "system_clear" | "manual_clear" | "maintenance"
+ * }
+ *
+ * Effect:
+ *  - Finds all ACTIVE alerts
+ *  - Sets status = NEUTRALISED
+ *  - Sets decidedAt = now()
+ *  - Sets decision = "neutralised[:reason]"
+ *  - Emits socket events for each resolved alert
+ */
+async function neutraliseAllActiveAlerts(req, res) {
+  try {
+    const { reason } = req.body || {};
+    const decision = reason ? `neutralised:${reason}` : "neutralised";
+
+    // 1) Fetch all ACTIVE alerts (only ids)
+    const activeAlerts = await prisma.alert.findMany({
+      where: { status: "ACTIVE" },
+      select: { id: true },
+    });
+
+    if (activeAlerts.length === 0) {
+      return res.json({
+        success: true,
+        message: "No active alerts to neutralise",
+        count: 0,
+      });
+    }
+
+    const alertIds = activeAlerts.map((a) => a.id);
+
+    // 2) Update all ACTIVE alerts
+    await prisma.alert.updateMany({
+      where: {
+        id: { in: alertIds },
+        status: "ACTIVE",
+      },
+      data: {
+        status: "NEUTRALISED",
+        decidedAt: new Date(),
+        decision,
+      },
+    });
+
+    // 3) Emit socket events
+    try {
+      const io = getIo();
+      for (const id of alertIds) {
+        io.emit("alert_resolved", {
+          id,
+          status: "NEUTRALISED",
+        });
+      }
+    } catch (e) {
+      console.error(
+        "Socket not initialized, cannot emit alert_resolved:",
+        e.message
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: "All active alerts neutralised",
+      count: alertIds.length,
+    });
+  } catch (err) {
+    console.error("Error in neutraliseAllActiveAlerts:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+}
+
 export {
   handleNxAlert,
   sendDroneForAlert,
@@ -603,4 +682,5 @@ export {
   getAllAlerts,
   getAlertById,
   deleteAlert,
+  neutraliseAllActiveAlerts,
 };

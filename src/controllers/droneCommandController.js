@@ -115,6 +115,23 @@ export const sendDrone = async (req, res) => {
       });
     }
 
+    // 🔴 EMIT MISSION STARTED (for map polyline)
+    const io = getIo();
+
+    io.emit("mission_started", {
+      droneId: drone.droneId, // IMPORTANT: frontend uses droneId, not DB id
+      sensorId: sensorId || null,
+      targetLat: Number(targetLatitude),
+      targetLng: Number(targetLongitude),
+    });
+
+    console.log("[SOCKET] mission_started:", {
+      droneId: drone.droneId,
+      sensorId,
+      targetLatitude,
+      targetLongitude,
+    });
+
     res.status(200).json({
       success: true,
       message: "Drone command sent successfully",

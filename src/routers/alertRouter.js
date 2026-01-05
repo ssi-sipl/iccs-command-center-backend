@@ -9,6 +9,7 @@ import {
   getAllAlerts,
   getAlertById,
   deleteAlert,
+  neutraliseAllActiveAlerts,
 } from "../controllers/alertController.js";
 
 const router = Router();
@@ -24,6 +25,8 @@ router.get("/alerts", getAllAlerts);
 
 // Get all ACTIVE alerts (for dashboard initial state)
 router.get("/active", getActiveAlerts);
+
+router.post("/neutralise-all", neutraliseAllActiveAlerts);
 
 // Get alert history for a specific sensor
 router.get("/by-sensor/:sensorDbId", getAlertsBySensor);
