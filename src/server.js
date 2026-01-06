@@ -1,3 +1,4 @@
+import cookieParser from "cookie-parser";
 import express, { json, urlencoded } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -17,6 +18,9 @@ import rtspRoutes from "./routers/rtspRouter.js";
 import flightHistoryRoutes from "./routers/flightHistoryRouter.js";
 import { initDroneMqttListener } from "./lib/droneMqttListener.js";
 import droneCommandRoutes from "./routers/droneCommandRouter.js";
+import { requireAuth, requireRole } from "./middleware/auth.js";
+import adminUserRoutes from "./routers/adminUserRoutes.js";
+import authRoutes from "./routers/authRoutes.js";
 
 const app = express();
 
@@ -24,9 +28,12 @@ const app = express();
 app.use(cors());
 app.use(json());
 app.use(urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Routes
-app.use("/api/areas", areaRoutes);
+app.use("/api/admin/users", adminUserRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/areas", requireAuth, areaRoutes);
 app.use("/api/sensors", sensorRoutes);
 app.use("/api/droneos", droneosRoutes);
 app.use("/api/alarms", alarmRoutes);

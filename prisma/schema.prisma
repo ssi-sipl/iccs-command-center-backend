@@ -14,10 +14,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  OPERATOR
+  USER
+}
+
 enum AlertStatus {
   ACTIVE        // waiting for your decision
   SENT          // drone dispatched
   NEUTRALISED   // manually neutralised / ignored
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(USER)
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Area {
