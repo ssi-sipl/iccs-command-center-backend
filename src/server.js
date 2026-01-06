@@ -50,6 +50,9 @@ app.use("/api/rtsp", requireAuth, rtspRoutes);
 app.use("/api/flight-history", requireAuth, flightHistoryRoutes);
 app.use("/api/drone-command", requireAuth, droneCommandRoutes);
 
+// Example of protecting a route with both authentication and role-based authorization
+// app.use("/api/areas", requireAuth, requireRole("ADMIN"), areaRoutes);
+
 app.use(
   "/maps",
   requireAuth,
