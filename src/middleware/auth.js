@@ -7,7 +7,7 @@ export function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    const payload = jwt.verify(token, "asasdfasdfadsfadsfasdfdasfadsf");
     req.user = payload;
     next();
   } catch {
