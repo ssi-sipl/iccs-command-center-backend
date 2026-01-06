@@ -189,21 +189,24 @@ model OfflineMap {
   name        String
   description String?
 
-  // Root path for tiles inside Next public folder
-  // Example: "/maps/manekshaw" → tiles at /public/maps/manekshaw/{z}/{x}/{y}.jpg
+  // Root path where tiles will be served from backend
+  // Example: "/maps/<mapId>"
   tileRoot    String
 
-  // Zoom range available for this offline map
   minZoom     Int
   maxZoom     Int
 
-  // Geographic bounds (used to center the map, future sensor placement, etc.)
-  north       Float    // max latitude
-  south       Float    // min latitude
-  east        Float    // max longitude
-  west        Float    // min longitude
+  north       Float
+  south       Float
+  east        Float
+  west        Float
 
   isActive    Boolean  @default(false)
+
+  // 🔽 DOWNLOAD STATE (NEW)
+  downloadStatus   String  @default("PENDING") // PENDING | DOWNLOADING | READY | FAILED
+  downloadProgress Int     @default(0)         // 0 - 100
+  downloadError    String?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

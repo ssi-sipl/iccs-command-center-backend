@@ -1,4 +1,159 @@
 import prisma from "../lib/prisma.js";
+import fs from "fs";
+import path from "path";
+import axios from "axios";
+
+const ESRI_TILE_URL =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+
+// 🔒 Active download control registry
+const activeMapDownloads = new Map();
+/*
+  mapId => {
+    cancelled: boolean
+  }
+*/
+
+function lonToX(lon, zoom) {
+  return Math.floor(((lon + 180) / 360) * Math.pow(2, zoom));
+}
+
+function latToY(lat, zoom) {
+  const rad = (lat * Math.PI) / 180;
+  return Math.floor(
+    ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) *
+      Math.pow(2, zoom)
+  );
+}
+
+function deleteMapDirectory(mapId) {
+  const dirPath = path.join(process.cwd(), "public", "maps", mapId);
+
+  if (fs.existsSync(dirPath)) {
+    fs.rmSync(dirPath, {
+      recursive: true,
+      force: true, // 👈 very important (no throw if partially locked)
+    });
+  }
+}
+
+async function startMapTileDownload(mapId) {
+  try {
+    const map = await prisma.offlineMap.findUnique({ where: { id: mapId } });
+    if (!map) return;
+
+    const cancelToken = { cancelled: false };
+    activeMapDownloads.set(mapId, cancelToken);
+
+    console.log(`[MAP] ⬇️ Download started for map ${mapId}`);
+
+    const baseDir = path.join(process.cwd(), "public", "maps", mapId);
+
+    fs.mkdirSync(baseDir, { recursive: true });
+
+    await prisma.offlineMap.update({
+      where: { id: mapId },
+      data: { downloadStatus: "DOWNLOADING", downloadProgress: 0 },
+    });
+
+    let totalTiles = 0;
+    let downloaded = 0;
+
+    // Pre-calc tile count
+    for (let z = map.minZoom; z <= map.maxZoom; z++) {
+      const x1 = lonToX(map.west, z);
+      const x2 = lonToX(map.east, z);
+      const y1 = latToY(map.north, z);
+      const y2 = latToY(map.south, z);
+      totalTiles += (Math.abs(x2 - x1) + 1) * (Math.abs(y2 - y1) + 1);
+    }
+
+    for (let z = map.minZoom; z <= map.maxZoom; z++) {
+      const xStart = lonToX(map.west, z);
+      const xEnd = lonToX(map.east, z);
+      const yStart = latToY(map.north, z);
+      const yEnd = latToY(map.south, z);
+
+      for (let x = Math.min(xStart, xEnd); x <= Math.max(xStart, xEnd); x++) {
+        for (let y = Math.min(yStart, yEnd); y <= Math.max(yStart, yEnd); y++) {
+          if (cancelToken.cancelled) {
+            console.warn(
+              `[MAP] 🛑 Download cancelled mid-way for map ${mapId}`
+            );
+            throw new Error("DOWNLOAD_CANCELLED");
+          }
+
+          const tileDir = path.join(baseDir, `${z}`, `${x}`);
+          const tilePath = path.join(tileDir, `${y}.jpg`);
+
+          if (fs.existsSync(tilePath)) {
+            downloaded++;
+            continue;
+          }
+
+          fs.mkdirSync(tileDir, { recursive: true });
+
+          const url = ESRI_TILE_URL.replace("{z}", z)
+            .replace("{x}", x)
+            .replace("{y}", y);
+
+          try {
+            const res = await axios.get(url, {
+              responseType: "arraybuffer",
+              timeout: 15000,
+            });
+
+            fs.writeFileSync(tilePath, res.data);
+            downloaded++;
+          } catch (err) {
+            console.error("Tile failed:", z, x, y);
+          }
+
+          // Update progress every 25 tiles
+          if (downloaded % 25 === 0) {
+            const progress = Math.min(
+              99,
+              Math.floor((downloaded / totalTiles) * 100)
+            );
+
+            await prisma.offlineMap.update({
+              where: { id: mapId },
+              data: { downloadProgress: progress },
+            });
+          }
+
+          // Rate limiting (VERY important)
+          await new Promise((r) => setTimeout(r, 200));
+        }
+      }
+    }
+
+    await prisma.offlineMap.update({
+      where: { id: mapId },
+      data: {
+        downloadStatus: "READY",
+        downloadProgress: 100,
+      },
+    });
+  } catch (err) {
+    if (String(err.message).includes("DOWNLOAD_CANCELLED")) {
+      console.warn(`[MAP] ⛔ Download aborted for map ${mapId}`);
+    } else {
+      console.error("Map download failed:", err);
+
+      await prisma.offlineMap.update({
+        where: { id: mapId },
+        data: {
+          downloadStatus: "FAILED",
+          downloadError: String(err),
+        },
+      });
+    }
+  } finally {
+    // 🧹 STEP 4 — CLEANUP
+    activeMapDownloads.delete(mapId);
+  }
+}
 
 /**
  * GET /api/maps
@@ -84,13 +239,6 @@ async function createMap(req, res) {
       });
     }
 
-    if (!tileRoot || typeof tileRoot !== "string") {
-      return res.status(400).json({
-        success: false,
-        error: "tileRoot is required and must be a string",
-      });
-    }
-
     const minZoomNum = Number(minZoom);
     const maxZoomNum = Number(maxZoom);
     const northNum = Number(north);
@@ -135,15 +283,24 @@ async function createMap(req, res) {
       data: {
         name: name.trim(),
         description: description?.trim() || null,
-        tileRoot: tileRoot.trim(), // e.g. "/maps/manekshaw"
+
+        // IMPORTANT: tileRoot is now mapId-based
+        tileRoot: `/maps`, // base root only
+
         minZoom: minZoomNum,
         maxZoom: maxZoomNum,
         north: northNum,
         south: southNum,
         east: eastNum,
         west: westNum,
+
+        downloadStatus: "PENDING",
+        downloadProgress: 0,
       },
     });
+
+    // 🔥 start download asynchronously (do NOT await)
+    startMapTileDownload(created.id);
 
     return res.status(201).json({
       success: true,
@@ -213,6 +370,13 @@ async function deleteMap(req, res) {
       where: { id },
     });
 
+    // 🔴 STEP 5 — CANCEL ACTIVE DOWNLOAD (IF ANY)
+    const activeDownload = activeMapDownloads.get(id);
+    if (activeDownload) {
+      console.warn(`[MAP] 🛑 Cancelling download due to map deletion (${id})`);
+      activeDownload.cancelled = true;
+    }
+
     if (!map) {
       return res.status(404).json({
         success: false,
@@ -224,6 +388,16 @@ async function deleteMap(req, res) {
       return res.status(400).json({
         success: false,
         error: "Cannot delete active map. Set another map as active first.",
+      });
+    }
+
+    try {
+      deleteMapDirectory(id);
+    } catch (fsErr) {
+      console.error("Failed to delete map directory:", fsErr);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to delete map files from disk",
       });
     }
 

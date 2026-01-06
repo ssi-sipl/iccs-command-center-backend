@@ -2,6 +2,7 @@ import express, { json, urlencoded } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import http from "http";
+import path from "path";
 import { getMqttClient } from "./lib/mqttClient.js";
 import { initSocket } from "./lib/socket.js";
 dotenv.config();
@@ -34,6 +35,8 @@ app.use("/api/maps", mapRoutes);
 app.use("/api/rtsp", rtspRoutes);
 app.use("/api/flight-history", flightHistoryRoutes);
 app.use("/api/drone-command", droneCommandRoutes);
+
+app.use("/maps", express.static(path.join(process.cwd(), "public", "maps")));
 
 // Health check
 app.get("/health", (req, res) => {
