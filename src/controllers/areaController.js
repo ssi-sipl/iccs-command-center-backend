@@ -75,13 +75,20 @@ const getAreaById = async (req, res) => {
 // @access  Public
 const createArea = async (req, res) => {
   try {
-    const { areaId, name, latitude, longitude, status } = req.body;
+    const { areaId, name, latitude, longitude, status, addedBy } = req.body;
 
     // Validation
     if (!areaId || !name || latitude === undefined || longitude === undefined) {
       return res.status(400).json({
         success: false,
         error: "Missing required fields: areaId, name, latitude, longitude",
+      });
+    }
+
+    if (addedBy && typeof addedBy !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "addedBy must be a string",
       });
     }
 
@@ -121,6 +128,7 @@ const createArea = async (req, res) => {
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
         status: status || "Active",
+        addedBy: addedBy || "",
       },
     });
 
