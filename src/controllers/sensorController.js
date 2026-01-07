@@ -263,6 +263,7 @@ const createSensor = async (req, res) => {
       activeShuruMode,
       areaId,
       alarmId,
+      addedBy,
     } = req.body;
 
     // Validation
@@ -279,6 +280,13 @@ const createSensor = async (req, res) => {
         success: false,
         error:
           "Missing required fields: sensorId, name, sensorType, latitude, longitude, status, activeShuruMode",
+      });
+    }
+
+    if (addedBy && typeof addedBy !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "addedBy must be a string",
       });
     }
 
@@ -356,6 +364,7 @@ const createSensor = async (req, res) => {
         activeShuruMode,
         areaId: areaId || null,
         alarmId: alarmId || null,
+        addedBy: addedBy || "",
       },
       include: {
         area: true,

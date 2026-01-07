@@ -82,6 +82,8 @@ model Sensor {
   alarm   Alarm?  @relation(fields: [alarmId], references: [id], onDelete: SetNull)
 
   alerts        Alert[]
+
+  addedBy    String @default("")   // User who added the sensor
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
