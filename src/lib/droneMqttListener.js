@@ -60,6 +60,7 @@ export function initDroneMqttListener() {
         satellites: payload.satelliteCount ?? null,
         windSpeed: payload.windSpeed ?? null,
         targetDistance: payload.targetDistance ?? null,
+        event: payload.event ?? null,
         status: payload.status ?? null,
         command: payload.command ?? null,
         ts: Date.now(),
