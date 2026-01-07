@@ -96,6 +96,7 @@ const createDroneOS = async (req, res) => {
       areaId,
       latitude,
       longitude,
+      addedBy,
     } = req.body;
 
     // Validation - required fields
@@ -122,6 +123,13 @@ const createDroneOS = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: "Missing required fields",
+      });
+    }
+
+    if (addedBy && typeof addedBy !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "addedBy must be a string",
       });
     }
 
@@ -226,6 +234,7 @@ const createDroneOS = async (req, res) => {
         areaId: areaId || null,
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
+        addedBy: addedBy || "",
       },
       include: {
         area: true,

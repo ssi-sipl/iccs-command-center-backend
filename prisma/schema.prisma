@@ -112,6 +112,7 @@ model DroneOS {
   maxAltitude       Float    // Max Altitude in meters
   latitude          Float?    // Home Latitude
   longitude         Float?    // Home Longitude
+  addedBy           String @default("")   // User who added the drone
   
   // Relations
   areaId        String? @db.ObjectId
