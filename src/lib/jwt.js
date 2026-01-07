@@ -5,7 +5,7 @@ export const signAccessToken = (user) =>
     { uid: user.id, role: user.role },
     "asasdfasdfadsfadsfasdfdasfadsf",
     {
-      expiresIn: "15m",
+      expiresIn: "1d",
     }
   );
 
