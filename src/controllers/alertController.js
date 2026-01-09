@@ -1,6 +1,8 @@
 import prisma from "../lib/prisma.js";
 import { getIo } from "../lib/socket.js";
 import { publishJson } from "../lib/mqttClient.js";
+import { parseNxData } from "../lib/parseNxData.js";
+import { timeStamp } from "console";
 
 /**
  * Nx Witness → POST /api/alerts/from-nx
@@ -19,12 +21,21 @@ import { publishJson } from "../lib/mqttClient.js";
  */
 async function handleNxAlert(req, res) {
   try {
-    const { sensorId, type, message, metadata } = req.body || {};
+    const { sensorId, data } = req.body || {};
 
     if (!sensorId) {
       return res.status(400).json({
         success: false,
         error: "sensorId is required",
+      });
+    }
+
+    // 🔹 ADAPTER: parse Nx raw data if present
+
+    if (!data) {
+      return res.status(400).json({
+        success: false,
+        error: "data field is required for Nx alerts",
       });
     }
 
@@ -56,6 +67,32 @@ async function handleNxAlert(req, res) {
       });
     }
 
+    let parsed;
+    try {
+      parsed = parseNxData(data);
+    } catch (e) {
+      console.error("Failed to parse Nx data:", e);
+      return res.status(400).json({
+        success: false,
+        error: "Failed to parse Nx data",
+      });
+    }
+
+    const type = parsed.type;
+    const message = parsed.message;
+    const confidence = parsed.confidence;
+    const timestamp = parsed.timestamp;
+    const time = parsed.time;
+
+    console.log("Parsed Nx alert data:", {
+      sensorId,
+      type,
+      message,
+      confidence,
+      timestamp,
+      time,
+    });
+
     const area = await prisma.area.findUnique({
       where: { id: sensor.areaId },
     });
@@ -75,7 +112,9 @@ async function handleNxAlert(req, res) {
         type: alertType,
         message: alertMessage,
         status: "ACTIVE",
-        metadata: metadata || undefined,
+        timestamp,
+        time: time,
+        // metadata: metadata || undefined,
       },
     });
 

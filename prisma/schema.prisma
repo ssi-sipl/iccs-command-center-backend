@@ -156,6 +156,8 @@ model Alert {
 
   type      String      // e.g. "ObjectDetected"
   message   String      // e.g. "Object detected in front of Sensor-1"
+  time     String    // Time of the alert
+  timestamp DateTime    @default(now()) // When the alert was created in the system
 
   status    AlertStatus @default(ACTIVE)
 

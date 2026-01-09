@@ -44,7 +44,7 @@ app.use("/api/areas", requireAuth, areaRoutes);
 app.use("/api/sensors", requireAuth, sensorRoutes);
 app.use("/api/droneos", requireAuth, droneosRoutes);
 app.use("/api/alarms", requireAuth, alarmRoutes);
-app.use("/api/alerts", requireAuth, alertRoutes);
+app.use("/api/alerts", alertRoutes);
 app.use("/api/maps", requireAuth, mapRoutes);
 app.use("/api/rtsp", requireAuth, rtspRoutes);
 app.use("/api/flight-history", requireAuth, flightHistoryRoutes);
