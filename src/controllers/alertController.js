@@ -118,6 +118,13 @@ async function handleNxAlert(req, res) {
       },
     });
 
+    // 🚁 AUTO DRONE DISPATCH (if enabled)
+    try {
+      await autoDispatchDroneForSensor(sensor.sensorId, newAlert);
+    } catch (e) {
+      console.error("Auto drone dispatch failed:", e.message);
+    }
+
     const payload = {
       ...newAlert,
       sensor: {

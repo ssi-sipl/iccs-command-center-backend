@@ -53,7 +53,8 @@ model Area {
   // Relations
   sensors       Sensor[]
   alarms        Alarm[]
-  drones        DroneOS[]
+    // 1️⃣ One-to-one relation
+  drone     DroneOS?
 
   @@map("areas")
 }
@@ -114,9 +115,9 @@ model DroneOS {
   longitude         Float?    // Home Longitude
   addedBy           String @default("")   // User who added the drone
   
-  // Relations
-  areaId        String? @db.ObjectId
-  area          Area?   @relation(fields: [areaId], references: [id], onDelete: SetNull)
+// 2️⃣ Foreign key MUST be unique
+  areaId      String   @unique @db.ObjectId
+  area        Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
   
   flightHistory DroneFlightHistory[]
   
