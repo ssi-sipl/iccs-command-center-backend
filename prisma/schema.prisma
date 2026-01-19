@@ -113,6 +113,12 @@ model DroneOS {
   latitude          Float?    // Home Latitude
   longitude         Float?    // Home Longitude
   addedBy           String @default("")   // User who added the drone
+
+  lastLatitude   Float?
+  lastLongitude  Float?
+  lastAltitude   Float?
+  battery        Float?
+  droneMode      String?
   
   // Relations
   areaId        String? @db.ObjectId

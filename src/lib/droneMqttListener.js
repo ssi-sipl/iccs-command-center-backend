@@ -6,6 +6,16 @@ import prisma from "./prisma.js";
 const DRONE_TOPIC = "drones/+/telemetry";
 let initialized = false;
 
+const toFloat = (v) => {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const toInt = (v) => {
+  const n = parseInt(v, 10);
+  return Number.isInteger(n) ? n : null;
+};
+
 export function initDroneMqttListener() {
   if (initialized) return;
   initialized = true;
@@ -26,11 +36,11 @@ export function initDroneMqttListener() {
 
       // Normalize fields (VERY IMPORTANT)
       const droneId = payload.droneid || payload.droneId;
-      const lat = payload.currentLatitude ?? payload.lat;
-      const lng = payload.currentLongitude ?? payload.lng;
-      const alt = payload.currentAltitude ?? payload.alt;
+      const lat = toFloat(payload.currentLatitude ?? payload.lat);
+      const lng = toFloat(payload.currentLongitude ?? payload.lng);
+      const alt = toFloat(payload.currentAltitude ?? payload.alt);
 
-      if (!droneId || typeof lat !== "number" || typeof lng !== "number") {
+      if (!droneId || lat === null || lng === null) {
         console.warn("[MQTT] Invalid telemetry payload");
         return;
       }
@@ -52,14 +62,14 @@ export function initDroneMqttListener() {
         droneId,
         lat,
         lng,
-        alt: alt ?? null,
-        speed: payload.droneSpeed ?? null,
-        battery: payload.batteryVoltage ?? null,
+        alt,
+        speed: toFloat(payload.droneSpeed),
+        battery: toFloat(payload.batteryVoltage),
         mode: payload.droneMode ?? null,
-        gpsFix: payload.GPSFix ?? null,
-        satellites: payload.satelliteCount ?? null,
-        windSpeed: payload.windSpeed ?? null,
-        targetDistance: payload.targetDistance ?? null,
+        gpsFix: toInt(payload.GPSFix),
+        satellites: toInt(payload.satelliteCount),
+        windSpeed: toFloat(payload.windSpeed),
+        targetDistance: toFloat(payload.targetDistance),
         event: payload.event ?? null,
         status: payload.status ?? null,
         command: payload.command ?? null,
@@ -78,9 +88,8 @@ export function initDroneMqttListener() {
             lastLatitude: lat,
             lastLongitude: lng,
             lastAltitude: alt,
-            battery: payload.batteryVoltage ?? undefined,
-            droneMode: payload.droneMode ?? undefined,
-            updatedAt: new Date(),
+            battery: toFloat(payload.batteryVoltage),
+            droneMode: payload.droneMode ?? null,
           },
         });
       }
