@@ -30,7 +30,7 @@ app.use(
   cors({
     origin: "http://localhost:3000",
     credentials: true,
-  })
+  }),
 );
 
 app.use(json());
@@ -38,26 +38,40 @@ app.use(urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Routes
+// app.use("/api/admin/users", adminUserRoutes);
+// app.use("/api/auth", authRoutes);
+// app.use("/api/areas", requireAuth, areaRoutes);
+// app.use("/api/sensors", requireAuth, sensorRoutes);
+// app.use("/api/droneos", requireAuth, droneosRoutes);
+// app.use("/api/alarms", requireAuth, alarmRoutes);
+// app.use("/api/alerts", alertRoutes);
+// app.use("/api/maps", requireAuth, mapRoutes);
+// app.use("/api/rtsp", requireAuth, rtspRoutes);
+// app.use("/api/flight-history", requireAuth, flightHistoryRoutes);
+// app.use("/api/drone-command", requireAuth, droneCommandRoutes);
+
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/areas", requireAuth, areaRoutes);
-app.use("/api/sensors", requireAuth, sensorRoutes);
-app.use("/api/droneos", requireAuth, droneosRoutes);
-app.use("/api/alarms", requireAuth, alarmRoutes);
+app.use("/api/areas", areaRoutes);
+app.use("/api/sensors", sensorRoutes);
+app.use("/api/droneos", droneosRoutes);
+app.use("/api/alarms", alarmRoutes);
 app.use("/api/alerts", alertRoutes);
-app.use("/api/maps", requireAuth, mapRoutes);
-app.use("/api/rtsp", requireAuth, rtspRoutes);
-app.use("/api/flight-history", requireAuth, flightHistoryRoutes);
-app.use("/api/drone-command", requireAuth, droneCommandRoutes);
+app.use("/api/maps", mapRoutes);
+app.use("/api/rtsp", rtspRoutes);
+app.use("/api/flight-history", flightHistoryRoutes);
+app.use("/api/drone-command", droneCommandRoutes);
 
 // Example of protecting a route with both authentication and role-based authorization
 // app.use("/api/areas", requireAuth, requireRole("ADMIN"), areaRoutes);
 
-app.use(
-  "/maps",
-  requireAuth,
-  express.static(path.join(process.cwd(), "public", "maps"))
-);
+// app.use(
+//   "/maps",
+//   requireAuth,
+//   express.static(path.join(process.cwd(), "public", "maps")),
+// );
+
+app.use("/maps", express.static(path.join(process.cwd(), "public", "maps")));
 
 // Health check
 app.get("/health", (req, res) => {
