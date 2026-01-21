@@ -114,9 +114,6 @@ async function handleNxAlert(req, res) {
         status: "ACTIVE",
         timestamp,
         time: time,
-        sensor: {
-          connect: { id: sensor.id },
-        },
         // metadata: metadata || undefined,
       },
     });
