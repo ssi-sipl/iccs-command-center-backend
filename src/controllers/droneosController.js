@@ -1,4 +1,5 @@
 import prisma from "../lib/prisma.js";
+import { getIo } from "../lib/socket.js";
 
 // @desc    Get all drone OS settings
 // @route   GET /api/droneos
@@ -358,6 +359,9 @@ const createDroneOS = async (req, res) => {
       },
     });
 
+    const io = getIo();
+    io.emit("drone_created", droneOS);
+
     res.status(201).json({
       success: true,
       data: droneOS,
@@ -534,6 +538,9 @@ const updateDroneOS = async (req, res) => {
       },
     });
 
+    const io = getIo();
+    io.emit("drone_updated", updatedDroneOS);
+
     res.status(200).json({
       success: true,
       data: updatedDroneOS,
@@ -568,9 +575,12 @@ const deleteDroneOS = async (req, res) => {
     }
 
     // Delete drone OS
-    await prisma.droneOS.delete({
+    const deletedDrone = await prisma.droneOS.delete({
       where: { id },
     });
+
+    const io = getIo();
+    io.emit("drone_deleted", deletedDrone);
 
     res.status(200).json({
       success: true,

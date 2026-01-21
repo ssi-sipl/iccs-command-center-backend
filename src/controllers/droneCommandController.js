@@ -35,7 +35,7 @@ export const sendDrone = async (req, res) => {
           message:
             'Invalid input: "targetLatitude", "targetLongitude", and "targetAltitude" are required.',
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
