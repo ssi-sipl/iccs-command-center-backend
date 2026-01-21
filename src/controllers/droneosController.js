@@ -3,34 +3,151 @@ import prisma from "../lib/prisma.js";
 // @desc    Get all drone OS settings
 // @route   GET /api/droneos
 // @access  Public
+// const getAllDroneOS = async (req, res) => {
+//   try {
+//     const { areaId, include } = req.query;
+
+//     // Build where clause
+//     const whereClause = {};
+//     if (areaId) whereClause.areaId = areaId;
+
+//     const droneOSSettings = await prisma.droneOS.findMany({
+//       where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+//       include: {
+//         area: include === "true",
+//       },
+//       orderBy: {
+//         createdAt: "desc",
+//       },
+//     });
+
+//     res.status(200).json({
+//       success: true,
+//       count: droneOSSettings.length,
+//       data: droneOSSettings,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching drone OS settings:", error);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch drone OS settings",
+//     });
+//   }
+// };
+
 const getAllDroneOS = async (req, res) => {
   try {
-    const { areaId, include } = req.query;
+    const { areaId, include, search } = req.query;
 
-    // Build where clause
-    const whereClause = {};
-    if (areaId) whereClause.areaId = areaId;
+    // pagination
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+
+    // build where clause
+    const whereClause = {
+      ...(areaId ? { areaId } : {}),
+      ...(search
+        ? {
+            OR: [
+              {
+                droneId: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+              {
+                droneOSName: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+              {
+                droneType: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+              {
+                gpsName: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+              {
+                addedBy: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    // total count for pagination
+    const totalCount = await prisma.droneOS.count({
+      where: whereClause,
+    });
 
     const droneOSSettings = await prisma.droneOS.findMany({
-      where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+      where: whereClause,
       include: {
         area: include === "true",
       },
       orderBy: {
         createdAt: "desc",
       },
+      skip,
+      take: limit,
     });
 
     res.status(200).json({
       success: true,
-      count: droneOSSettings.length,
       data: droneOSSettings,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasNextPage: page * limit < totalCount,
+        hasPrevPage: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching drone OS settings:", error);
     res.status(500).json({
       success: false,
       error: "Failed to fetch drone OS settings",
+    });
+  }
+};
+
+const getDroneStats = async (req, res) => {
+  try {
+    const [total, assigned, unassigned] = await Promise.all([
+      prisma.droneOS.count(),
+      prisma.droneOS.count({
+        where: { areaId: { not: null } },
+      }),
+      prisma.droneOS.count({
+        where: { areaId: null },
+      }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        total,
+        assigned,
+        unassigned,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching drone stats:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch drone stats",
     });
   }
 };
@@ -519,4 +636,5 @@ export {
   updateDroneOS,
   deleteDroneOS,
   getDronesByArea,
+  getDroneStats,
 };

@@ -6,9 +6,12 @@ import {
   updateDroneOS,
   deleteDroneOS,
   getDronesByArea,
+  getDroneStats,
 } from "../controllers/droneosController.js";
 
 const router = Router();
+
+router.get("/stats", getDroneStats);
 
 router.route("/").get(getAllDroneOS).post(createDroneOS);
 
