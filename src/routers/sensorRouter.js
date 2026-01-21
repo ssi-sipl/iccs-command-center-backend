@@ -7,9 +7,12 @@ import {
   deleteSensor,
   getSensorsByArea,
   sendDroneToSensor,
+  getSensorStats,
 } from "../controllers/sensorController.js";
 
 const router = Router();
+
+router.get("/stats", getSensorStats);
 
 router.route("/").get(getAllSensors).post(createSensor);
 

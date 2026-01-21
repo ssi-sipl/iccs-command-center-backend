@@ -3,18 +3,88 @@ import prisma from "../lib/prisma.js";
 // @desc    Get all sensors
 // @route   GET /api/sensors
 // @access  Public
+// const getAllSensors = async (req, res) => {
+//   try {
+//     const { status, areaId, sensorType, include } = req.query;
+
+//     // Build where clause
+//     const whereClause = {};
+//     if (status) whereClause.status = status;
+//     if (areaId) whereClause.areaId = areaId;
+//     if (sensorType) whereClause.sensorType = sensorType;
+
+//     const sensors = await prisma.sensor.findMany({
+//       where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+//       include: {
+//         area: include === "true",
+//         alarm: include === "true",
+//       },
+//       orderBy: {
+//         createdAt: "desc",
+//       },
+//     });
+
+//     res.status(200).json({
+//       success: true,
+//       count: sensors.length,
+//       data: sensors,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching sensors:", error);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch sensors",
+//     });
+//   }
+// };
+
 const getAllSensors = async (req, res) => {
   try {
-    const { status, areaId, sensorType, include } = req.query;
+    const { status, areaId, sensorType, include, search } = req.query;
 
-    // Build where clause
-    const whereClause = {};
-    if (status) whereClause.status = status;
-    if (areaId) whereClause.areaId = areaId;
-    if (sensorType) whereClause.sensorType = sensorType;
+    // pagination
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+
+    // build where clause
+    const whereClause = {
+      ...(status ? { status } : {}),
+      ...(areaId ? { areaId } : {}),
+      ...(sensorType ? { sensorType } : {}),
+      ...(search
+        ? {
+            OR: [
+              {
+                sensorId: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+              {
+                name: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+              {
+                sensorType: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    // total count for pagination
+    const totalCount = await prisma.sensor.count({
+      where: whereClause,
+    });
 
     const sensors = await prisma.sensor.findMany({
-      where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+      where: whereClause,
       include: {
         area: include === "true",
         alarm: include === "true",
@@ -22,12 +92,21 @@ const getAllSensors = async (req, res) => {
       orderBy: {
         createdAt: "desc",
       },
+      skip,
+      take: limit,
     });
 
     res.status(200).json({
       success: true,
-      count: sensors.length,
       data: sensors,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasNextPage: page * limit < totalCount,
+        hasPrevPage: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching sensors:", error);
@@ -38,6 +117,32 @@ const getAllSensors = async (req, res) => {
   }
 };
 
+const getSensorStats = async (req, res) => {
+  try {
+    const [total, active, inactive, warning] = await Promise.all([
+      prisma.sensor.count(),
+      prisma.sensor.count({ where: { status: "Active" } }),
+      prisma.sensor.count({ where: { status: "Inactive" } }),
+      prisma.sensor.count({ where: { status: "warning" } }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        total,
+        active,
+        inactive,
+        warning,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching sensor stats:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch sensor stats",
+    });
+  }
+};
 /**
  * POST /api/sensors/:sensorDbId/send-drone
  *
@@ -178,7 +283,7 @@ async function sendDroneToSensor(req, res) {
     } catch (e) {
       console.error(
         "Socket not initialized, cannot emit drone_dispatched_manual:",
-        e.message
+        e.message,
       );
     }
 
@@ -614,4 +719,5 @@ export {
   updateSensor,
   deleteSensor,
   getSensorsByArea,
+  getSensorStats,
 };
