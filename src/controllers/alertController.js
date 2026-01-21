@@ -114,6 +114,9 @@ async function handleNxAlert(req, res) {
         status: "ACTIVE",
         timestamp,
         time: time,
+        sensor: {
+          connect: { id: sensor.id },
+        },
         // metadata: metadata || undefined,
       },
     });
@@ -139,7 +142,7 @@ async function handleNxAlert(req, res) {
     } catch (e) {
       console.error(
         "Socket not initialized, cannot emit alert_active:",
-        e.message
+        e.message,
       );
     }
 
@@ -264,7 +267,7 @@ async function deleteAlert(req, res) {
     } catch (e) {
       console.error(
         "Socket not initialized, cannot emit alert_deleted:",
-        e.message
+        e.message,
       );
     }
 
@@ -392,7 +395,7 @@ async function sendDroneForAlert(req, res) {
     } catch (e) {
       console.error(
         "Socket not initialized, cannot emit alert_resolved:",
-        e.message
+        e.message,
       );
     }
 
@@ -451,7 +454,7 @@ async function neutraliseAlert(req, res) {
     } catch (e) {
       console.error(
         "Socket not initialized, cannot emit alert_resolved:",
-        e.message
+        e.message,
       );
     }
 
@@ -694,7 +697,7 @@ async function neutraliseAllActiveAlerts(req, res) {
     } catch (e) {
       console.error(
         "Socket not initialized, cannot emit alert_resolved:",
-        e.message
+        e.message,
       );
     }
 
