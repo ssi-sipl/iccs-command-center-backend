@@ -3,12 +3,72 @@ import prisma from "../lib/prisma.js";
 // @desc    Get all areas
 // @route   GET /api/areas
 // @access  Public
+// const getAllAreas = async (req, res) => {
+//   try {
+//     const { status, include } = req.query;
+
+//     const areas = await prisma.area.findMany({
+//       where: status ? { status } : undefined,
+//       include: {
+//         sensors: include === "true",
+//         alarms: include === "true",
+//         drones: include === "true",
+//       },
+//       orderBy: {
+//         createdAt: "desc",
+//       },
+//     });
+
+//     res.status(200).json({
+//       success: true,
+//       count: areas.length,
+//       data: areas,
+//     });
+//   } catch (error) {
+//     console.error("Error at areaController/getAllAreas:", error);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch areas",
+//     });
+//   }
+// };
+
 const getAllAreas = async (req, res) => {
   try {
-    const { status, include } = req.query;
+    const { status, include, search } = req.query;
+
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+
+    const whereClause = {
+      ...(status ? { status } : {}),
+      ...(search
+        ? {
+            OR: [
+              {
+                name: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+              {
+                areaId: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const totalCount = await prisma.area.count({
+      where: whereClause,
+    });
 
     const areas = await prisma.area.findMany({
-      where: status ? { status } : undefined,
+      where: whereClause,
       include: {
         sensors: include === "true",
         alarms: include === "true",
@@ -17,12 +77,21 @@ const getAllAreas = async (req, res) => {
       orderBy: {
         createdAt: "desc",
       },
+      skip,
+      take: limit,
     });
 
     res.status(200).json({
       success: true,
-      count: areas.length,
       data: areas,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasNextPage: page * limit < totalCount,
+        hasPrevPage: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error at areaController/getAllAreas:", error);
