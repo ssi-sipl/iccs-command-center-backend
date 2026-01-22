@@ -124,6 +124,7 @@ async function handleNxAlert(req, res) {
         id: sensor.id,
         sensorId: sensor.sensorId,
         name: sensor.name,
+        rtspUrl: sensor.rtspUrl,
         latitude: sensor.latitude,
         longitude: sensor.longitude,
         area: {
