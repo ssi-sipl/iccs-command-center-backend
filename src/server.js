@@ -93,6 +93,10 @@ initSocket(server);
 
 initDroneMqttListener();
 
+app.get("/", (req, res) => {
+  res.json("Backend API Running");
+});
+
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   getMqttClient();
