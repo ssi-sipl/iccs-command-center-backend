@@ -69,6 +69,8 @@ export function initDroneMqttListener() {
         gpsFix: toInt(payload.GPSFix),
         satellites: toInt(payload.satelliteCount),
         windSpeed: toFloat(payload.windSpeed),
+        targetLat: toFloat(payload.targetLatitude),
+        targetLng: toFloat(payload.targetLongitude),
         targetDistance: toFloat(payload.targetDistance),
         event: payload.event ?? null,
         status: payload.status ?? null,
