@@ -23,6 +23,10 @@ import { requireAuth, requireRole } from "./middleware/auth.js";
 import adminUserRoutes from "./routers/adminUserRoutes.js";
 import authRoutes from "./routers/authRoutes.js";
 
+const isDev = process.env.NODE_ENV !== "production";
+
+const devOrAuth = isDev ? (req, res, next) => next() : requireAuth;
+
 const app = express();
 
 app.use(
@@ -39,15 +43,15 @@ app.use(cookieParser());
 // Routes
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/areas", requireAuth, areaRoutes);
-app.use("/api/sensors", requireAuth, sensorRoutes);
-app.use("/api/droneos", requireAuth, droneosRoutes);
-app.use("/api/alarms", requireAuth, alarmRoutes);
+app.use("/api/areas", devOrAuth, areaRoutes);
+app.use("/api/sensors", devOrAuth, sensorRoutes);
+app.use("/api/droneos", devOrAuth, droneosRoutes);
+app.use("/api/alarms", devOrAuth, alarmRoutes);
 app.use("/api/alerts", alertRoutes);
-app.use("/api/maps", requireAuth, mapRoutes);
-app.use("/api/rtsp", requireAuth, rtspRoutes);
-app.use("/api/flight-history", requireAuth, flightHistoryRoutes);
-app.use("/api/drone-command", requireAuth, droneCommandRoutes);
+app.use("/api/maps", devOrAuth, mapRoutes);
+app.use("/api/rtsp", devOrAuth, rtspRoutes);
+app.use("/api/flight-history", devOrAuth, flightHistoryRoutes);
+app.use("/api/drone-command", devOrAuth, droneCommandRoutes);
 
 // app.use("/api/admin/users", adminUserRoutes);
 // app.use("/api/auth", authRoutes);
