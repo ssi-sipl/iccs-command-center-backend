@@ -5,8 +5,8 @@ export const signAccessToken = (user) =>
     { uid: user.id, role: user.role },
     "asasdfasdfadsfadsfasdfdasfadsf",
     {
-      expiresIn: "1d",
-    }
+      expiresIn: "7d",
+    },
   );
 
 export const signRefreshToken = (user) =>
