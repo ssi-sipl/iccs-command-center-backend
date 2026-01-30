@@ -62,7 +62,7 @@ model Sensor {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
   sensorId   String   @unique // Unique sensor ID
   name       String   // Sensor name
-  sensorType String   // Type of sensorgit push --set-upstream origin optimisation
+  sensorType String   // Type of sensor
   latitude   Float    // Sensor location latitude
   longitude  Float    // Sensor location longitude
   ipAddress  String?  // Optional IP address
