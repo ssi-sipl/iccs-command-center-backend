@@ -94,6 +94,8 @@ export const sendDrone = async (req, res) => {
       longitude: targetLongitude.toString(),
       targetAltitude: drone.targetAltitude.toString(),
       usbAddress: drone.usbAddress.toString(),
+      baseLatitude: drone.latitude.toString(),
+      baseLongitude: drone.longitude.toString(),
     };
 
     console.log("Publishing to MQTT:", droneData);
