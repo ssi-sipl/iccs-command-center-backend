@@ -1,7 +1,7 @@
 import prisma from "../lib/prisma.js";
 import { getIo } from "../lib/socket.js";
 import { publishJson } from "../lib/mqttClient.js";
-import { parseNxData } from "../lib/parseNxData.js";
+import parseNxData from "../lib/parseNxData.js";
 import { timeStamp } from "console";
 
 /**

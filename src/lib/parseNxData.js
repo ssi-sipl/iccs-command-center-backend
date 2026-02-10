@@ -44,4 +44,4 @@ function parseNxData(dataStr = "") {
   };
 }
 
-module.exports = { parseNxData };
+export default parseNxData;
