@@ -2,9 +2,11 @@
   "name": "drone-control-dashboard-backend",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/server.js",
+    "build": "javascript-obfuscator src --output dist --target node",
+    "start": "node dist/server.js",
     "dev": "nodemon src/server.js"
   },
   "keywords": [],
