@@ -24,7 +24,7 @@ import adminUserRoutes from "./routers/adminUserRoutes.js";
 import authRoutes from "./routers/authRoutes.js";
 
 const isDev = process.env.NODE_ENV !== "production";
-
+console.log(`Running in ${isDev ? "development" : "production"} mode`);
 const devOrAuth = isDev ? (req, res, next) => next() : requireAuth;
 
 const app = express();
@@ -90,7 +90,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = 5000;
 
 const server = http.createServer(app);
 initSocket(server);
